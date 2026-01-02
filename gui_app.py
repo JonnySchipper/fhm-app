@@ -29,13 +29,16 @@ GROK_API_URL = "https://api.x.ai/v1/chat/completions"
 
 def load_api_key():
     """Load API key from config file"""
-    config_path = "C:\\source\\grok_config.txt"
     try:
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
+        # Try parent directory first (canva folder)
+        parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
+        parent_config = os.path.join(parent_dir, 'grok_config.txt')
+        if os.path.exists(parent_config):
+            with open(parent_config, 'r') as f:
                 key = f.read().strip()
                 if key:
                     return key
+        
         # Fallback: check local config
         if os.path.exists("grok_config.txt"):
             with open("grok_config.txt", 'r') as f:
