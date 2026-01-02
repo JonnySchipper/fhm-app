@@ -1,0 +1,113 @@
+========================================
+SETUP CHECKLIST - Disney Magnet Processor
+========================================
+
+Follow these steps to get started:
+
+□ STEP 1: Extract this folder
+   - Extract to any location (e.g., c:\orders\canva\)
+
+□ STEP 2: Install Python (if not already installed)
+   - Download from: https://www.python.org/downloads/
+   - Version 3.7 or higher required
+
+□ STEP 3: Install required packages
+   - Open command prompt/terminal
+   - Navigate to this folder
+   - Run: pip install -r requirements.txt
+   - Or manually: pip install Pillow PyPDF2
+
+□ STEP 4: Set up FHM_Images folder
+   - IMPORTANT: Place FHM_Images in the PARENT directory
+   - Structure should be:
+     parent_folder\
+       ├── FHM_Images\       ← Your images here
+       └── canva\            ← This folder
+           └── process_orders.py
+
+□ STEP 5: Verify you have:
+   ✓ process_orders.py (the main script)
+   ✓ format.pdf (template)
+   ✓ font\ folder with 3 font files
+   ✓ All documentation files
+
+□ STEP 6: Create your orders CSV
+   - Use sample_order.csv or template_order.csv as reference
+   - Format: character,name
+   - Character names must match image filenames (without .png)
+
+□ STEP 7: Run a test
+   - Command: python process_orders.py sample_order.csv
+   - Check outputs\ folder for generated images
+   - Check current directory for PDF files
+
+□ STEP 8: Process your real orders
+   - Command: python process_orders.py your_orders.csv
+
+========================================
+WHAT EACH FILE DOES
+========================================
+
+process_orders.py          → Main script (run this!)
+format.pdf                 → PDF template for output
+requirements.txt           → List of Python packages needed
+font\                      → Required Disney/custom fonts
+sample_order.csv           → Example with 10 orders
+template_order.csv         → Blank template to copy
+README.md                  → START HERE - Main instructions
+QUICKSTART.md              → Fast 2-minute reference
+PROCESS_ORDERS_README.md   → Complete detailed guide
+SOLUTION_SUMMARY.md        → Technical documentation
+SETUP_CHECKLIST.txt        → This file!
+
+========================================
+QUICK REFERENCE
+========================================
+
+Install packages:
+  pip install -r requirements.txt
+
+Run script:
+  python process_orders.py your_orders.csv
+
+Output locations:
+  - Images: outputs\ folder
+  - PDFs: current directory (order_output_*.pdf)
+
+CSV format:
+  character,name
+  mickey-captain,Johnny
+  minnie-normal,Sarah
+
+========================================
+TROUBLESHOOTING
+========================================
+
+Problem: "Images folder not found"
+Fix: Put FHM_Images in parent directory, not inside this folder
+
+Problem: "Image not found for character"
+Fix: Check character name matches image filename exactly
+
+Problem: "Template PDF not found"  
+Fix: Make sure format.pdf is in same folder as script
+
+Problem: "Font not found"
+Fix: Verify font\ folder exists with all 3 font files
+
+========================================
+NEED MORE HELP?
+========================================
+
+1. Read README.md for complete setup instructions
+2. Check QUICKSTART.md for quick reference
+3. See PROCESS_ORDERS_README.md for detailed examples
+4. Review SOLUTION_SUMMARY.md for technical details
+
+========================================
+
+All ready? Start with: python process_orders.py sample_order.csv
+
+Good luck! 🎉
+
+

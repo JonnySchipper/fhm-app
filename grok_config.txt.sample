@@ -1,0 +1,12 @@
+YOUR-GROK-API-KEY-HERE
+
+Instructions:
+1. Get your Grok API key from https://console.x.ai/
+2. Copy this file as "grok_config.txt" (remove .sample)
+3. Replace the text above with your actual API key
+4. Save the file
+
+Alternative: Place this file at C:\source\grok_config.txt
+
+Note: grok_config.txt is in .gitignore and won't be pushed to GitHub
+
