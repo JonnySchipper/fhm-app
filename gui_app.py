@@ -992,31 +992,32 @@ pluto-captain,Sophia"""
         
         # Image search dialog
         def open_image_search(target_var):
-            """Open a searchable dialog to select character images"""
+            """Open a fast searchable list to select character images"""
             search_window = tk.Toplevel(preview_window)
-            search_window.title("🔍 Search Character Images")
-            search_window.geometry("700x600")
+            search_window.title("🔍 Search Characters")
+            search_window.geometry("500x600")
             search_window.configure(bg="white")
             search_window.transient(preview_window)
+            search_window.grab_set()  # Make modal
             
             # Title
             tk.Label(
                 search_window,
-                text="🔍 Search Character Images",
+                text="🔍 Search Characters",
                 font=("Segoe UI", 14, "bold"),
                 bg="white"
             ).pack(pady=10)
             
             # Search input
             search_frame = tk.Frame(search_window, bg="white")
-            search_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+            search_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
             
             tk.Label(
                 search_frame,
-                text="Search:",
-                font=("Segoe UI", 10, "bold"),
+                text="Type to filter:",
+                font=("Segoe UI", 11),
                 bg="white"
-            ).pack(side=tk.LEFT, padx=(0, 5))
+            ).pack(anchor=tk.W, pady=(0, 5))
             
             search_var = tk.StringVar()
             search_entry = tk.Entry(
@@ -1027,172 +1028,142 @@ pluto-captain,Sophia"""
                 fg="black",
                 insertbackground="black"
             )
-            search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            search_entry.pack(fill=tk.X)
             search_entry.focus()
             
-            # Results info
-            results_label = tk.Label(
-                search_frame,
-                text="",
+            # Results count
+            count_label = tk.Label(
+                search_window,
+                text=f"{len(available_images)} characters available",
                 font=("Segoe UI", 9),
                 bg="white",
                 fg="#666"
             )
-            results_label.pack(side=tk.LEFT)
+            count_label.pack(pady=(0, 5))
             
-            # Scrollable results
-            results_canvas = tk.Canvas(search_window, bg="white")
-            results_scrollbar = tk.Scrollbar(search_window, orient="vertical", command=results_canvas.yview)
-            results_frame = tk.Frame(results_canvas, bg="white")
+            # Listbox with scrollbar
+            list_frame = tk.Frame(search_window, bg="white")
+            list_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 10))
             
-            results_frame.bind(
-                "<Configure>",
-                lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all"))
+            scrollbar = tk.Scrollbar(list_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            listbox = tk.Listbox(
+                list_frame,
+                font=("Consolas", 11),
+                yscrollcommand=scrollbar.set,
+                selectmode=tk.SINGLE,
+                activestyle='dotbox',
+                bg="white",
+                fg="black",
+                selectbackground=self.accent_color,
+                selectforeground="white",
+                relief=tk.SOLID,
+                bd=1
             )
+            listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=listbox.yview)
             
-            results_canvas.create_window((0, 0), window=results_frame, anchor="nw")
-            results_canvas.configure(yscrollcommand=results_scrollbar.set)
-            
-            results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-            results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
-            
-            # Function to display results
-            def display_results(query=""):
-                # Clear previous results
-                for widget in results_frame.winfo_children():
-                    widget.destroy()
+            # Populate initial list
+            def update_list(query=""):
+                listbox.delete(0, tk.END)
                 
-                # Clear old images
-                if hasattr(self, '_search_images'):
-                    self._search_images.clear()
-                else:
-                    self._search_images = []
-                
-                # Filter images
                 if query:
                     filtered = [img for img in available_images if query.lower() in img.lower()]
                 else:
-                    # Show nothing initially - prompt to search
-                    tk.Label(
-                        results_frame,
-                        text="Type in the search box above to find characters...\n\nExamples: mickey, elsa-captain, stitch-christmas",
-                        font=("Segoe UI", 12),
-                        bg="white",
-                        fg="#333"
-                    ).pack(pady=50)
-                    results_label.config(text="")
-                    return
+                    filtered = available_images
                 
-                results_label.config(text=f"{len(filtered)} found")
+                for item in filtered:
+                    listbox.insert(tk.END, item)
                 
-                if not filtered:
-                    tk.Label(
-                        results_frame,
-                        text="No matches found. Try a different search term.",
-                        font=("Segoe UI", 12),
-                        bg="white",
-                        fg="#666"
-                    ).pack(pady=30)
-                    return
+                count_label.config(text=f"{len(filtered)} matches")
                 
-                # Limit results for performance
-                max_results = 20  # 5 rows of 4
-                display_list = filtered[:max_results]
-                
-                # Display in grid with thumbnails
-                row_frame = None
-                for i, img_name in enumerate(display_list):
-                    if i % 4 == 0:
-                        row_frame = tk.Frame(results_frame, bg="white")
-                        row_frame.pack(fill=tk.X, pady=5)
-                    
-                    # Create clickable item frame with better size
-                    item_frame = tk.Frame(row_frame, bg="white", relief=tk.RAISED, bd=2, cursor="hand2")
-                    item_frame.pack(side=tk.LEFT, padx=5, pady=5)
-                    
-                    # Load thumbnail - bigger size
-                    img_path = os.path.join(images_dir, f"{img_name}.png")
-                    if os.path.exists(img_path):
-                        try:
-                            img = Image.open(img_path)
-                            img.thumbnail((100, 100), Image.Resampling.LANCZOS)
-                            photo = ImageTk.PhotoImage(img)
-                            self._search_images.append(photo)
-                            
-                            img_label = tk.Label(item_frame, image=photo, bg="white")
-                            img_label.pack(padx=5, pady=5)
-                        except:
-                            tk.Label(item_frame, text="Error", font=("Segoe UI", 10), bg="white", fg="red").pack(pady=40)
-                    else:
-                        tk.Label(item_frame, text="N/A", font=("Segoe UI", 10), bg="white", fg="#999").pack(pady=40)
-                    
-                    # Character name - bigger text
-                    char_display_name = img_name
-                    if len(char_display_name) > 20:
-                        char_display_name = char_display_name[:20] + "..."
-                    
-                    name_label = tk.Label(
-                        item_frame,
-                        text=char_display_name,
-                        font=("Segoe UI", 9, "bold"),
-                        bg="white",
-                        fg="black",
-                        wraplength=100
-                    )
-                    name_label.pack(pady=(2, 5), padx=3)
-                    
-                    # Select button with proper closure
-                    # Use default argument to capture value, not reference
-                    def create_select_command(character_name=img_name):
-                        def on_select():
-                            print(f"DEBUG: Selecting {character_name}")  # Debug
-                            target_var.set(character_name)
-                            search_window.destroy()
-                        return on_select
-                    
-                    select_btn = tk.Button(
-                        item_frame,
-                        text="✓ Select",
-                        command=create_select_command(),
-                        font=("Segoe UI", 10, "bold"),
-                        bg=self.accent_color,
-                        fg="white",
-                        relief=tk.FLAT,
-                        cursor="hand2",
-                        activebackground="#3a7bc2",
-                        activeforeground="white"
-                    )
-                    select_btn.pack(fill=tk.X, pady=(0, 5), padx=5)
-                
-                # Show message if more results exist
-                if len(filtered) > max_results:
-                    tk.Label(
-                        results_frame,
-                        text=f"Showing first {max_results} of {len(filtered)} results. Type more to narrow down.",
-                        font=("Segoe UI", 10, "bold"),
-                        bg="white",
-                        fg="#f0ad4e"
-                    ).pack(pady=15)
+                # Auto-select first item if any
+                if filtered:
+                    listbox.selection_set(0)
+                    listbox.see(0)
+            
+            # Initial population
+            update_list()
             
             # Bind search
-            search_var.trace_add('write', lambda *args: display_results(search_var.get()))
+            def on_search_change(*args):
+                update_list(search_var.get())
             
-            # Initial display - show search prompt
-            display_results("")
+            search_var.trace_add('write', on_search_change)
             
-            # Enable mousewheel scrolling
-            def _on_search_mousewheel(event):
-                results_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            results_canvas.bind_all("<MouseWheel>", _on_search_mousewheel)
+            # Select on double-click
+            def on_double_click(event):
+                selection = listbox.curselection()
+                if selection:
+                    selected = listbox.get(selection[0])
+                    target_var.set(selected)
+                    search_window.destroy()
             
-            # Cleanup
-            def on_search_close():
-                results_canvas.unbind_all("<MouseWheel>")
-                if hasattr(self, '_search_images'):
-                    self._search_images.clear()
-                search_window.destroy()
+            listbox.bind('<Double-Button-1>', on_double_click)
             
-            search_window.protocol("WM_DELETE_WINDOW", on_search_close)
+            # Select on Enter key
+            def on_enter(event):
+                selection = listbox.curselection()
+                if selection:
+                    selected = listbox.get(selection[0])
+                    target_var.set(selected)
+                    search_window.destroy()
+            
+            listbox.bind('<Return>', on_enter)
+            search_entry.bind('<Return>', on_enter)
+            
+            # Button frame
+            btn_frame = tk.Frame(search_window, bg="white")
+            btn_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+            
+            # Select button
+            def on_select():
+                selection = listbox.curselection()
+                if selection:
+                    selected = listbox.get(selection[0])
+                    target_var.set(selected)
+                    search_window.destroy()
+                else:
+                    messagebox.showwarning("No Selection", "Please select a character from the list.")
+            
+            select_btn = tk.Button(
+                btn_frame,
+                text="✓ Select Character",
+                command=on_select,
+                font=("Segoe UI", 11, "bold"),
+                bg=self.success_color,
+                fg="white",
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=20,
+                pady=8
+            )
+            select_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            # Cancel button
+            cancel_btn = tk.Button(
+                btn_frame,
+                text="✕ Cancel",
+                command=search_window.destroy,
+                font=("Segoe UI", 10),
+                bg="#6c757d",
+                fg="white",
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=20,
+                pady=8
+            )
+            cancel_btn.pack(side=tk.LEFT)
+            
+            # Instructions
+            tk.Label(
+                search_window,
+                text="💡 Tip: Type to filter • Double-click or press Enter to select",
+                font=("Segoe UI", 8, "italic"),
+                bg="white",
+                fg="#999"
+            ).pack(pady=(0, 10))
         
         # Delete order function
         def delete_order(idx):
