@@ -826,16 +826,30 @@ pluto-captain,Sophia"""
             # Windows and Linux
             if event.delta:
                 canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            # Mac
-            elif event.num == 4:
-                canvas.yview_scroll(-1, "units")
-            elif event.num == 5:
-                canvas.yview_scroll(1, "units")
         
-        # Bind mouse wheel events
-        preview_window.bind_all("<MouseWheel>", on_mousewheel)  # Windows/Linux
-        preview_window.bind_all("<Button-4>", on_mousewheel)  # Mac scroll up
-        preview_window.bind_all("<Button-5>", on_mousewheel)  # Mac scroll down
+        def on_mac_mousewheel(event):
+            # Mac uses different delta values
+            canvas.yview_scroll(-1 * event.delta, "units")
+        
+        def on_button_4(event):
+            # X11 scroll up (Linux, some Mac configs)
+            canvas.yview_scroll(-1, "units")
+        
+        def on_button_5(event):
+            # X11 scroll down (Linux, some Mac configs)
+            canvas.yview_scroll(1, "units")
+        
+        # Bind mouse wheel events based on platform
+        system = platform.system()
+        if system == 'Darwin':  # macOS
+            canvas.bind_all("<MouseWheel>", on_mac_mousewheel)
+            canvas.bind_all("<Button-4>", on_button_4)
+            canvas.bind_all("<Button-5>", on_button_5)
+        elif system == 'Linux':
+            canvas.bind_all("<Button-4>", on_button_4)
+            canvas.bind_all("<Button-5>", on_button_5)
+        else:  # Windows
+            canvas.bind_all("<MouseWheel>", on_mousewheel)
         
         # Store order data (will be updated as user edits)
         order_data = []
@@ -1149,6 +1163,32 @@ pluto-captain,Sophia"""
             
             listbox.bind('<Return>', on_enter)
             search_entry.bind('<Return>', on_enter)
+            
+            # Enable mouse wheel scrolling for listbox (cross-platform)
+            def on_listbox_mousewheel(event):
+                if event.delta:
+                    listbox.yview_scroll(int(-1*(event.delta/120)), "units")
+            
+            def on_listbox_mac_mousewheel(event):
+                listbox.yview_scroll(-1 * event.delta, "units")
+            
+            def on_listbox_button_4(event):
+                listbox.yview_scroll(-1, "units")
+            
+            def on_listbox_button_5(event):
+                listbox.yview_scroll(1, "units")
+            
+            # Bind based on platform
+            system = platform.system()
+            if system == 'Darwin':  # macOS
+                listbox.bind("<MouseWheel>", on_listbox_mac_mousewheel)
+                listbox.bind("<Button-4>", on_listbox_button_4)
+                listbox.bind("<Button-5>", on_listbox_button_5)
+            elif system == 'Linux':
+                listbox.bind("<Button-4>", on_listbox_button_4)
+                listbox.bind("<Button-5>", on_listbox_button_5)
+            else:  # Windows
+                listbox.bind("<MouseWheel>", on_listbox_mousewheel)
             
             # Button frame
             btn_frame = tk.Frame(search_window, bg="white")
@@ -1841,11 +1881,24 @@ Stitch for Sophia"""
             
             # Convert result to simple format
             orders = []
-            for name, image_file in result.items():
-                if name not in ['_order', 'unmatched'] and image_file:
-                    # Remove .png extension
-                    character = image_file.replace('.png', '')
-                    orders.append(f"{character},{name}")
+            
+            # Handle both old dictionary format and new list format
+            if isinstance(result, list):
+                # New list format - supports duplicate names
+                for item in result:
+                    if isinstance(item, dict) and 'name' in item and 'image' in item:
+                        name = item['name']
+                        image_file = item['image']
+                        # Remove .png extension
+                        character = image_file.replace('.png', '')
+                        orders.append(f"{character},{name}")
+            elif isinstance(result, dict):
+                # Old dictionary format - kept for backwards compatibility
+                for name, image_file in result.items():
+                    if name not in ['_order', 'unmatched'] and image_file:
+                        # Remove .png extension
+                        character = image_file.replace('.png', '')
+                        orders.append(f"{character},{name}")
             
             if not orders:
                 self.root.after(0, lambda: messagebox.showwarning("No Matches", "AI couldn't find any matching orders.\nTry being more specific or use manual entry."))
@@ -1902,20 +1955,29 @@ INSTRUCTIONS:
 5. If a character/variant is not in the list, skip it
 6. If theme is unclear, prefer "-captain" variants over others
 7. Common patterns: charactername-captain, charactername-christmas, charactername-pirate, charactername-witch
+8. IMPORTANT: Multiple orders can have the SAME personalization name (e.g., two "Johnny" orders)
 
-OUTPUT FORMAT - Return ONLY a Python dictionary, no other text:
-{{
-  "PersonName1": "exact-filename.png",
-  "PersonName2": "exact-filename.png"
-}}
+OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
+[
+  {{"name": "PersonName1", "image": "exact-filename.png"}},
+  {{"name": "PersonName2", "image": "exact-filename.png"}},
+  {{"name": "PersonName1", "image": "different-filename.png"}}
+]
 
 Example:
-Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah"
-Output: {{"Johnny": "mickey-captain.png", "Sarah": "elsa-christmas.png"}}
+Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah, Captain Minnie for Johnny"
+Output: [
+  {{"name": "Johnny", "image": "mickey-captain.png"}},
+  {{"name": "Sarah", "image": "elsa-christmas.png"}},
+  {{"name": "Johnny", "image": "minnie-captain.png"}}
+]
 
-CRITICAL: Only use filenames that EXACTLY match the list above. Do not invent or guess names.
+CRITICAL: 
+- Only use filenames that EXACTLY match the list above
+- Return a LIST, not a dictionary, so duplicate names are preserved
+- Each order is a separate entry in the list
 
-Return the dictionary now:"""
+Return the list now:"""
         
         headers = {
             "Authorization": f"Bearer {GROK_API_KEY}",
@@ -1926,7 +1988,7 @@ Return the dictionary now:"""
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "max_tokens": 2000  # Reduced since output is just a small dictionary
+            "max_tokens": 2000  # Sufficient for list output format
         }
         
         try:
@@ -1939,17 +2001,35 @@ Return the dictionary now:"""
             
             self.root.after(0, lambda: self.log(f"Received response from AI", "info"))
             
-            # Extract dictionary
-            start = content.find('{')
-            end = content.rfind('}') + 1
+            # Try to extract list format first (new format)
+            list_start = content.find('[')
+            list_end = content.rfind(']') + 1
             
-            if start != -1 and end != 0:
-                dict_str = content[start:end]
-                matches = json.loads(dict_str)
-                return matches
-            else:
-                self.root.after(0, lambda: self.log("Could not parse AI response", "error"))
-                return {}
+            if list_start != -1 and list_end != 0:
+                try:
+                    list_str = content[list_start:list_end]
+                    matches = json.loads(list_str)
+                    if isinstance(matches, list):
+                        self.root.after(0, lambda: self.log(f"Parsed {len(matches)} orders from AI (list format)", "info"))
+                        return matches
+                except json.JSONDecodeError:
+                    pass
+            
+            # Fallback to dictionary format (old format)
+            dict_start = content.find('{')
+            dict_end = content.rfind('}') + 1
+            
+            if dict_start != -1 and dict_end != 0:
+                try:
+                    dict_str = content[dict_start:dict_end]
+                    matches = json.loads(dict_str)
+                    self.root.after(0, lambda: self.log(f"Parsed {len(matches)} orders from AI (dict format)", "info"))
+                    return matches
+                except json.JSONDecodeError:
+                    pass
+            
+            self.root.after(0, lambda: self.log("Could not parse AI response", "error"))
+            return {}
                 
         except Exception as e:
             error_msg = str(e)
