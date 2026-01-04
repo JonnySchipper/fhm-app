@@ -1159,6 +1159,20 @@ pluto-captain,Sophia"""
             
             search_window.protocol("WM_DELETE_WINDOW", on_search_close)
         
+        # Delete order function
+        def delete_order(idx):
+            if messagebox.askyesno("Delete Order", f"Delete order #{idx + 1}?"):
+                order_widgets[idx]['frame'].destroy()
+                order_data[idx] = None  # Mark as deleted
+                update_summary()
+        
+        # Function to update summary
+        def update_summary():
+            active_orders = [o for o in order_data if o is not None]
+            found = sum(1 for o in active_orders if os.path.exists(os.path.join(images_dir, f"{o['character']}.png")))
+            missing = len(active_orders) - found
+            summary_label.config(text=f"✓ Ready: {found}  |  ⚠ Issues: {missing}  |  Total: {len(active_orders)}")
+        
         # Add Order button (above canvas)
         add_order_frame = tk.Frame(preview_window, bg="white")
         add_order_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
@@ -1183,27 +1197,13 @@ pluto-captain,Sophia"""
         )
         add_btn.pack()
         
-        # Initialize existing orders
-        for character, name in orders:
-            create_order_row(character, name)
-        
-        # Delete order function
-        def delete_order(idx):
-            if messagebox.askyesno("Delete Order", f"Delete order #{idx + 1}?"):
-                order_widgets[idx]['frame'].destroy()
-                order_data[idx] = None  # Mark as deleted
-                update_summary()
-        
-        # Function to update summary
-        def update_summary():
-            active_orders = [o for o in order_data if o is not None]
-            found = sum(1 for o in active_orders if os.path.exists(os.path.join(images_dir, f"{o['character']}.png")))
-            missing = len(active_orders) - found
-            summary_label.config(text=f"✓ Ready: {found}  |  ⚠ Issues: {missing}  |  Total: {len(active_orders)}")
-        
         # Pack scrollbar and canvas
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Initialize existing orders (AFTER canvas is packed)
+        for character, name in orders:
+            create_order_row(character, name)
         
         # Bottom control panel
         bottom_frame = tk.Frame(preview_window, bg="#f0f0f0", relief=tk.RAISED, bd=2)
