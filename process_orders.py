@@ -231,43 +231,10 @@ def create_personalized_image(name, image_path, output_path):
 # ============================================================================
 
 def png_to_pdf(png_path, pdf_path):
-    """Convert PNG to PDF with proper file handling and longer delays."""
+    """Convert PNG to PDF - simple and fast like original working version."""
     try:
-        # Ensure image is fully loaded
         img = Image.open(png_path)
-        img.load()  # Force load all data
-        time.sleep(0.5)  # Wait for image to be fully in memory
-        
-        # Save as PDF
         img.save(pdf_path, "PDF", resolution=100.0)
-        img.close()  # Explicitly close the image
-        
-        # Longer delay to ensure file is written and closed properly
-        time.sleep(0.6)
-        
-        # Verify the PDF was created
-        if not os.path.exists(pdf_path):
-            raise RuntimeError(f"PDF file was not created: {pdf_path}")
-        
-        # Wait for file to be fully written (check file size stabilizes)
-        max_wait = 5.0  # Increased to 5 seconds for maximum reliability
-        start_time = time.time()
-        last_size = 0
-        stable_count = 0
-        while time.time() - start_time < max_wait:
-            current_size = os.path.getsize(pdf_path)
-            if current_size > 0 and current_size == last_size:
-                stable_count += 1
-                if stable_count >= 3:  # File size stable for 3 checks
-                    break
-            else:
-                stable_count = 0
-            last_size = current_size
-            time.sleep(0.15)
-        
-        # Final verification delay
-        time.sleep(0.4)
-            
     except Exception as e:
         print(f"Error converting {png_path} to PDF: {e}")
         raise
@@ -308,65 +275,32 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     temp_pdf1 = os.path.join(TEMP_DIR, "temp_1.pdf")
     temp_pdf2 = os.path.join(TEMP_DIR, "temp_2.pdf")
     
-    # Clean up any existing temp files with retries
+    # Clean up any existing temp files first
     for temp_file in [temp_pdf1, temp_pdf2]:
         if os.path.exists(temp_file):
-            for attempt in range(3):
-                try:
-                    os.remove(temp_file)
-                    break
-                except Exception:
-                    time.sleep(0.1)
+            os.remove(temp_file)
     
-    print(f"  Converting images to PDFs (this may take a moment)...")
-    
-    # Convert images with longer delays
     png_to_pdf(image1, temp_pdf1)
-    time.sleep(0.6)  # Wait between conversions
     png_to_pdf(image2, temp_pdf2)
     
-    # Additional delay to ensure files are fully written and available
-    time.sleep(1.0)
+    # Verify temp PDFs were created successfully
+    if not os.path.exists(temp_pdf1) or os.path.getsize(temp_pdf1) == 0:
+        raise RuntimeError(f"Failed to create valid temp PDF for image 1: {image1}")
+    if not os.path.exists(temp_pdf2) or os.path.getsize(temp_pdf2) == 0:
+        raise RuntimeError(f"Failed to create valid temp PDF for image 2: {image2}")
+    print(f"  ✓ Temp PDFs created successfully")
     
-    # Verify temp PDFs with detailed checks
-    for idx, temp_pdf in enumerate([temp_pdf1, temp_pdf2], 1):
-        if not os.path.exists(temp_pdf):
-            raise RuntimeError(f"Failed to create temp PDF {idx}")
-        size = os.path.getsize(temp_pdf)
-        if size == 0:
-            raise RuntimeError(f"Temp PDF {idx} is empty (0 bytes)")
-        if size < 100:  # PDFs should be at least 100 bytes
-            raise RuntimeError(f"Temp PDF {idx} is too small ({size} bytes)")
+    # Read the existing PDF
+    reader = PdfReader(input_pdf)
+    num_pages = len(reader.pages)
+    target = num_pages // 2
     
-    print(f"  Combining PDFs...")
+    # Read the image PDFs
+    reader_img1 = PdfReader(temp_pdf1)
+    reader_img2 = PdfReader(temp_pdf2)
     
-    # Read template PDF with careful error handling
-    try:
-        reader = PdfReader(input_pdf)
-        num_pages = len(reader.pages)
-        target = num_pages // 2
-    except Exception as e:
-        raise RuntimeError(f"Failed to read template PDF: {e}")
-    
-    # Wait before reading temp PDFs
-    time.sleep(0.6)
-    
-    # Read image PDFs with careful error handling
-    try:
-        reader_img1 = PdfReader(temp_pdf1)
-        reader_img2 = PdfReader(temp_pdf2)
-    except Exception as e:
-        raise RuntimeError(f"Failed to read temp PDFs: {e}")
-    
-    # Wait before accessing pages
-    time.sleep(0.5)
-    
-    # Get fresh copies of the image pages
-    try:
-        img_page1 = reader_img1.pages[0]
-        img_page2 = reader_img2.pages[0]
-    except Exception as e:
-        raise RuntimeError(f"Failed to get image pages: {e}")
+    img_page1 = reader_img1.pages[0]
+    img_page2 = reader_img2.pages[0]
     
     # Size and positioning
     img_width = 500
@@ -385,91 +319,51 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     # Calculate scale
     target_scale = (img_width / 1500) * scale_factor
     
-    print(f"  Applying transformations...")
+    # Apply transformations using TUPLE syntax (like original working version)
+    # Transformation matrix: (a, b, c, d, e, f) where a=d=scale, e=x, f=y
+    img_page1.add_transformation((target_scale, 0, 0, target_scale, tx1, ty1))
+    img_page2.add_transformation((target_scale, 0, 0, target_scale, tx2, ty2))
     
-    # Apply transformations to image pages BEFORE merging
-    # Transformation matrix: [a, b, c, d, e, f] where a=d=scale, e=x, f=y
-    img_page1.add_transformation([target_scale, 0, 0, target_scale, tx1, ty1])
-    time.sleep(0.5)  # Wait after first transformation
-    img_page2.add_transformation([target_scale, 0, 0, target_scale, tx2, ty2])
-    
-    # Longer wait to ensure transformations are fully applied
-    time.sleep(0.8)
+    # Use original working approach: get target page, merge both images, then add all pages
+    original_page = reader.pages[target]
+    original_page.merge_page(img_page2)
+    original_page.merge_page(img_page1)
     
     # Create writer
     writer = PdfWriter()
     
-    print(f"  Merging pages...")
-    
-    # Add pages with careful merging
-    for i in range(num_pages):
-        page = reader.pages[i]
-        if i == target:
-            # Merge images onto this page with longer delays
-            print(f"    Merging bottom image...")
-            page.merge_page(img_page2)
-            time.sleep(0.6)  # Longer wait between merges
-            print(f"    Merging top image...")
-            page.merge_page(img_page1)
-            time.sleep(0.5)
+    # Add all pages (with the modified target page)
+    for page in reader.pages:
         writer.add_page(page)
     
-    print(f"  Writing output PDF...")
+    # Write to output
+    with open(output_pdf, "wb") as out_file:
+        writer.write(out_file)
     
-    # Write output with explicit flush and longer delays
-    try:
-        with open(output_pdf, "wb") as out_file:
-            writer.write(out_file)
-            out_file.flush()
-            os.fsync(out_file.fileno())  # Force write to disk
-    except Exception as e:
-        raise RuntimeError(f"Failed to write output PDF: {e}")
-    
-    # Longer delay to ensure file is completely written
-    time.sleep(1.0)
-    
-    # Verify output exists
+    # Verify output PDF was created successfully
     if not os.path.exists(output_pdf):
         raise RuntimeError(f"Failed to create output PDF: {output_pdf}")
     
-    # Verify file size
     output_size = os.path.getsize(output_pdf)
     if output_size == 0:
         raise RuntimeError(f"Output PDF is empty: {output_pdf}")
     
-    # Wait before verification read
-    time.sleep(0.6)
+    # Verify output PDF can be read
+    try:
+        verification_reader = PdfReader(output_pdf)
+        if len(verification_reader.pages) == 0:
+            raise RuntimeError(f"Output PDF has no pages: {output_pdf}")
+        print(f"  ✓ Output PDF validated: {len(verification_reader.pages)} pages, {output_size} bytes")
+    except Exception as e:
+        raise RuntimeError(f"Output PDF validation failed: {output_pdf} - {e}")
     
-    # Verify readability with retries
-    for attempt in range(3):
-        try:
-            verification_reader = PdfReader(output_pdf)
-            if len(verification_reader.pages) == 0:
-                raise RuntimeError(f"Output PDF has no pages")
-            print(f"  ✓ PDF verified: {len(verification_reader.pages)} pages, {output_size} bytes")
-            break
-        except Exception as e:
-            if attempt < 2:
-                print(f"  Verification attempt {attempt+1} failed, retrying...")
-                time.sleep(0.5)
-            else:
-                raise RuntimeError(f"Output PDF validation failed: {e}")
-    
-    # Wait before cleanup
-    time.sleep(0.2)
-    
-    # Clean up temp files with retries
-    for temp_file in [temp_pdf1, temp_pdf2]:
-        for attempt in range(3):
-            try:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-                break
-            except Exception as e:
-                if attempt < 2:
-                    time.sleep(0.1)
-                else:
-                    print(f"  Warning: Could not clean up {temp_file}: {e}")
+    # Clean up temporary files
+    try:
+        os.remove(temp_pdf1)
+        os.remove(temp_pdf2)
+        print(f"  ✓ Temporary files cleaned up")
+    except Exception as e:
+        print(f"  Warning: Could not clean up temp files: {e}")
     
     return output_pdf
 
@@ -664,9 +558,6 @@ def process_all_orders(csv_path):
                 create_pdf_with_images(TEMPLATE_PDF, image1, image2, output_pdf)
                 print(f"  ✓ Saved to {output_pdf}")
                 pdf_count += 1
-                
-                # Longer delay between PDFs to prevent file system issues
-                time.sleep(0.5)
                 
             except Exception as e:
                 print(f"  ✗ ERROR creating PDF: {e}")
