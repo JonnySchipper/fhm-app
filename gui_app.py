@@ -820,6 +820,22 @@ pluto-captain,Sophia"""
         
         canvas.bind('<Configure>', configure_canvas_width)
         
+        # Enable mouse wheel scrolling (cross-platform)
+        def on_mousewheel(event):
+            # Windows and Linux
+            if event.delta:
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            # Mac
+            elif event.num == 4:
+                canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                canvas.yview_scroll(1, "units")
+        
+        # Bind mouse wheel events
+        preview_window.bind_all("<MouseWheel>", on_mousewheel)  # Windows/Linux
+        preview_window.bind_all("<Button-4>", on_mousewheel)  # Mac scroll up
+        preview_window.bind_all("<Button-5>", on_mousewheel)  # Mac scroll down
+        
         # Store order data (will be updated as user edits)
         order_data = []
         order_widgets = []  # Store references to widgets for updates
@@ -880,17 +896,22 @@ pluto-captain,Sophia"""
                 anchor=tk.W
             ).pack(side=tk.LEFT)
             
-            # Character dropdown with search
+            # Character text display (no dropdown)
             char_var = tk.StringVar(value=character)
-            char_combo = ttk.Combobox(
+            
+            char_label = tk.Label(
                 char_row,
                 textvariable=char_var,
-                values=available_images,
-                font=("Segoe UI", 9),
-                width=28,
-                state="normal"
+                font=("Consolas", 10),
+                bg="#f8f9fa",
+                fg="black",
+                anchor=tk.W,
+                relief=tk.SUNKEN,
+                bd=1,
+                padx=5,
+                pady=3
             )
-            char_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            char_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
             
             # Search button
             def make_search_handler(char_v):
@@ -900,12 +921,12 @@ pluto-captain,Sophia"""
                 char_row,
                 text="🔍 Search",
                 command=make_search_handler(char_var),
-                font=("Segoe UI", 8),
+                font=("Segoe UI", 9),
                 bg="#17a2b8",
-                fg="black",
+                fg="white",
                 relief=tk.FLAT,
-                padx=8,
-                pady=2,
+                padx=12,
+                pady=5,
                 cursor="hand2"
             )
             search_btn.pack(side=tk.LEFT)
@@ -990,7 +1011,7 @@ pluto-captain,Sophia"""
                 return update_image
             
             update_handler = make_update_handler(idx, img_label, char_var, name_var, status_label)
-            char_combo.bind('<<ComboboxSelected>>', update_handler)
+            # Update image when character changes (via search button)
             char_var.trace_add('write', lambda *args, h=update_handler: h())
             name_var.trace_add('write', lambda *args, i=idx, n=name_var: setattr(order_data[i], 'name', n.get()) or order_data.__setitem__(i, {'character': order_data[i]['character'], 'name': n.get()}))
             
@@ -1351,14 +1372,12 @@ pluto-captain,Sophia"""
         )
         cancel_btn.pack(side=tk.LEFT, padx=5)
         
-        # Enable mousewheel scrolling
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
         # Cleanup on close
         def on_close():
-            canvas.unbind_all("<MouseWheel>")
+            # Unbind all mouse wheel events
+            preview_window.unbind_all("<MouseWheel>")
+            preview_window.unbind_all("<Button-4>")
+            preview_window.unbind_all("<Button-5>")
             if hasattr(self, '_preview_images'):
                 self._preview_images.clear()
             preview_window.destroy()
