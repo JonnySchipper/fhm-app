@@ -9,6 +9,7 @@ import sys
 import csv
 import math
 import shutil
+import time
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from PyPDF2 import PdfReader, PdfWriter
@@ -168,6 +169,14 @@ def create_personalized_image(name, image_path, output_path):
     if not name or name.strip() == "":
         print(f"  Creating image without text for {os.path.basename(image_path)}")
         shutil.copy2(image_path, output_path)
+        
+        # Small delay to ensure file is copied
+        time.sleep(0.05)
+        
+        # Verify copy
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            raise RuntimeError(f"Failed to copy image: {output_path}")
+        
         return output_path
     
     print(f"  Adding text '{name}' to {os.path.basename(image_path)}")
@@ -198,13 +207,21 @@ def create_personalized_image(name, image_path, output_path):
         stroke_fill=(0, 0, 0, 255),
     )
     
-    # Save
-    img.convert("RGBA").save(output_path)
+    # Save with proper file handling
+    output_img = img.convert("RGBA")
+    output_img.save(output_path)
+    output_img.close()  # Explicitly close
+    img.close()  # Close original image too
     
-    if os.path.exists(output_path):
+    # Small delay to ensure file is written
+    time.sleep(0.05)
+    
+    # Verify file was created and has content
+    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
         print(f"  ✓ Saved to {output_path}")
     else:
         print(f"  ✗ ERROR: Failed to save {output_path}")
+        raise RuntimeError(f"Image file not properly created: {output_path}")
     
     return output_path
 
@@ -214,10 +231,30 @@ def create_personalized_image(name, image_path, output_path):
 # ============================================================================
 
 def png_to_pdf(png_path, pdf_path):
-    """Convert PNG to PDF."""
+    """Convert PNG to PDF with proper file handling."""
     try:
         img = Image.open(png_path)
         img.save(pdf_path, "PDF", resolution=100.0)
+        img.close()  # Explicitly close the image
+        
+        # Small delay to ensure file is written and closed properly
+        time.sleep(0.1)
+        
+        # Verify the PDF was created
+        if not os.path.exists(pdf_path):
+            raise RuntimeError(f"PDF file was not created: {pdf_path}")
+        
+        # Wait for file to be fully written (check file size stabilizes)
+        max_wait = 2.0  # Maximum 2 seconds
+        start_time = time.time()
+        last_size = 0
+        while time.time() - start_time < max_wait:
+            current_size = os.path.getsize(pdf_path)
+            if current_size > 0 and current_size == last_size:
+                break  # File size stable
+            last_size = current_size
+            time.sleep(0.05)
+            
     except Exception as e:
         print(f"Error converting {png_path} to PDF: {e}")
         raise
@@ -266,17 +303,21 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     png_to_pdf(image1, temp_pdf1)
     png_to_pdf(image2, temp_pdf2)
     
+    # Additional delay to ensure files are fully written
+    time.sleep(0.2)
+    
     # Verify temp PDFs
     if not os.path.exists(temp_pdf1) or os.path.getsize(temp_pdf1) == 0:
         raise RuntimeError(f"Failed to create valid temp PDF for image 1")
     if not os.path.exists(temp_pdf2) or os.path.getsize(temp_pdf2) == 0:
         raise RuntimeError(f"Failed to create valid temp PDF for image 2")
     
-    # Read PDFs
+    # Read template PDF
     reader = PdfReader(input_pdf)
     num_pages = len(reader.pages)
     target = num_pages // 2
     
+    # Read image PDFs
     reader_img1 = PdfReader(temp_pdf1)
     reader_img2 = PdfReader(temp_pdf2)
     
@@ -302,18 +343,30 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     img_page1.add_transformation((target_scale, 0, 0, target_scale, tx1, ty1))
     img_page2.add_transformation((target_scale, 0, 0, target_scale, tx2, ty2))
     
-    # Overlay on target page
+    # Get target page and merge images
     original_page = reader.pages[target]
+    
+    # Small delay before merging to ensure objects are ready
+    time.sleep(0.1)
+    
+    # Merge images - bottom first, then top (so top overlays bottom)
     original_page.merge_page(img_page2)
+    time.sleep(0.05)  # Small delay between merges
     original_page.merge_page(img_page1)
     
-    # Create output
+    # Create output writer
     writer = PdfWriter()
     for page in reader.pages:
         writer.add_page(page)
     
+    # Write output with explicit flush
     with open(output_pdf, "wb") as out_file:
         writer.write(out_file)
+        out_file.flush()
+        os.fsync(out_file.fileno())  # Force write to disk
+    
+    # Small delay to ensure file is written
+    time.sleep(0.1)
     
     # Verify output
     if not os.path.exists(output_pdf):
@@ -531,6 +584,10 @@ def process_all_orders(csv_path):
                 create_pdf_with_images(TEMPLATE_PDF, image1, image2, output_pdf)
                 print(f"  ✓ Saved to {output_pdf}")
                 pdf_count += 1
+                
+                # Small delay between PDFs to prevent file system issues
+                time.sleep(0.15)
+                
             except Exception as e:
                 print(f"  ✗ ERROR creating PDF: {e}")
                 import traceback
