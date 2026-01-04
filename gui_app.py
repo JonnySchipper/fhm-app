@@ -913,7 +913,8 @@ pluto-captain,Sophia"""
                 name_row,
                 textvariable=name_var,
                 font=("Segoe UI", 10),
-                bg="#f8f9fa"
+                bg="#f8f9fa",
+                fg="black"
             )
             name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
@@ -1059,11 +1060,26 @@ pluto-captain,Sophia"""
                 for widget in results_frame.winfo_children():
                     widget.destroy()
                 
+                # Clear old images
+                if hasattr(self, '_search_images'):
+                    self._search_images.clear()
+                else:
+                    self._search_images = []
+                
                 # Filter images
                 if query:
                     filtered = [img for img in available_images if query.lower() in img.lower()]
                 else:
-                    filtered = available_images
+                    # Show nothing initially - prompt to search
+                    tk.Label(
+                        results_frame,
+                        text="Type in the search box above to find characters...\n\nExamples: mickey, elsa-captain, stitch-christmas",
+                        font=("Segoe UI", 10),
+                        bg="white",
+                        fg="#666"
+                    ).pack(pady=40)
+                    results_label.config(text="")
+                    return
                 
                 results_label.config(text=f"{len(filtered)} found")
                 
@@ -1077,15 +1093,19 @@ pluto-captain,Sophia"""
                     ).pack(pady=20)
                     return
                 
+                # Limit results for performance
+                max_results = 24  # 6 rows of 4
+                display_list = filtered[:max_results]
+                
                 # Display in grid with thumbnails
                 row_frame = None
-                for i, img_name in enumerate(filtered[:50]):  # Limit to 50 results
+                for i, img_name in enumerate(display_list):
                     if i % 4 == 0:
                         row_frame = tk.Frame(results_frame, bg="white")
                         row_frame.pack(fill=tk.X, pady=5)
                     
-                    # Create button with thumbnail
-                    item_frame = tk.Frame(row_frame, bg="white", relief=tk.RAISED, bd=1)
+                    # Create clickable item frame
+                    item_frame = tk.Frame(row_frame, bg="white", relief=tk.RAISED, bd=1, cursor="hand2")
                     item_frame.pack(side=tk.LEFT, padx=5, pady=5)
                     
                     # Load thumbnail
@@ -1095,62 +1115,61 @@ pluto-captain,Sophia"""
                             img = Image.open(img_path)
                             img.thumbnail((80, 80), Image.Resampling.LANCZOS)
                             photo = ImageTk.PhotoImage(img)
-                            
-                            if not hasattr(self, '_search_images'):
-                                self._search_images = []
                             self._search_images.append(photo)
                             
                             img_label = tk.Label(item_frame, image=photo, bg="white")
                             img_label.pack()
                         except:
-                            tk.Label(item_frame, text="Error", font=("Segoe UI", 8), bg="white").pack()
+                            tk.Label(item_frame, text="Error", font=("Segoe UI", 8), bg="white", fg="red").pack(pady=30)
                     else:
-                        tk.Label(item_frame, text="N/A", font=("Segoe UI", 8), bg="white").pack()
+                        tk.Label(item_frame, text="N/A", font=("Segoe UI", 8), bg="white", fg="#999").pack(pady=30)
                     
                     # Character name
                     name_label = tk.Label(
                         item_frame,
-                        text=img_name[:15] + "..." if len(img_name) > 15 else img_name,
-                        font=("Segoe UI", 7),
+                        text=img_name[:18] + "..." if len(img_name) > 18 else img_name,
+                        font=("Segoe UI", 8),
                         bg="white",
                         fg="#333",
                         wraplength=80
                     )
-                    name_label.pack()
+                    name_label.pack(pady=2)
                     
                     # Select button
-                    def make_select_handler(name):
+                    def make_select_handler(img_n):
                         def select():
-                            target_var.set(name)
+                            target_var.set(img_n)
                             search_window.destroy()
                         return select
                     
                     select_btn = tk.Button(
                         item_frame,
-                        text="Select",
+                        text="✓ Select",
                         command=make_select_handler(img_name),
-                        font=("Segoe UI", 7),
+                        font=("Segoe UI", 8, "bold"),
                         bg=self.accent_color,
-                        fg="black",
+                        fg="white",
                         relief=tk.FLAT,
-                        cursor="hand2"
+                        cursor="hand2",
+                        activebackground="#3a7bc2"
                     )
-                    select_btn.pack(fill=tk.X)
+                    select_btn.pack(fill=tk.X, pady=(0, 2), padx=2)
                 
-                if len(filtered) > 50:
+                # Show message if more results exist
+                if len(filtered) > max_results:
                     tk.Label(
                         results_frame,
-                        text=f"Showing first 50 of {len(filtered)} results. Refine your search for more.",
+                        text=f"Showing first {max_results} of {len(filtered)} results. Type more to narrow down.",
                         font=("Segoe UI", 9, "italic"),
                         bg="white",
-                        fg="#666"
+                        fg="#f0ad4e"
                     ).pack(pady=10)
             
             # Bind search
             search_var.trace_add('write', lambda *args: display_results(search_var.get()))
             
-            # Initial display
-            display_results(target_var.get() if target_var.get() else "")
+            # Initial display - show search prompt
+            display_results("")
             
             # Enable mousewheel scrolling
             def _on_search_mousewheel(event):
