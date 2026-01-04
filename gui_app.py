@@ -18,6 +18,8 @@ import threading
 import requests
 import json
 import shutil
+import subprocess
+import platform
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +28,19 @@ import process_orders
 
 # Grok API configuration
 GROK_API_URL = "https://api.x.ai/v1/chat/completions"
+
+def open_file_or_folder(path):
+    """Cross-platform way to open files or folders"""
+    try:
+        system = platform.system()
+        if system == 'Darwin':  # macOS
+            subprocess.run(['open', path], check=True)
+        elif system == 'Windows':
+            os.startfile(path)
+        else:  # Linux
+            subprocess.run(['xdg-open', path], check=True)
+    except Exception as e:
+        raise Exception(f"Failed to open {path}: {e}")
 
 def load_api_key():
     """Load API key from config file"""
@@ -1571,7 +1586,10 @@ pluto-captain,Sophia"""
         """Open outputs folder"""
         outputs_dir = "outputs"
         if os.path.exists(outputs_dir):
-            os.startfile(outputs_dir)
+            try:
+                open_file_or_folder(outputs_dir)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to open folder:\n{str(e)}")
         else:
             messagebox.showinfo("No Outputs", "No outputs folder found yet.")
             
@@ -1579,7 +1597,10 @@ pluto-captain,Sophia"""
         """Open PDF archive folder"""
         archive_dir = "pdf_archive"
         if os.path.exists(archive_dir):
-            os.startfile(archive_dir)
+            try:
+                open_file_or_folder(archive_dir)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to open folder:\n{str(e)}")
         else:
             messagebox.showinfo("No Archive", "No archived PDFs yet. Process some orders first!")
             
@@ -1587,7 +1608,7 @@ pluto-captain,Sophia"""
         """Open the master PDF"""
         if self.master_pdf_path and os.path.exists(self.master_pdf_path):
             try:
-                os.startfile(self.master_pdf_path)
+                open_file_or_folder(self.master_pdf_path)
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to open PDF:\n{str(e)}")
         else:

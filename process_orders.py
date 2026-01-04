@@ -321,6 +321,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     reader_img1 = PdfReader(temp_pdf1)
     reader_img2 = PdfReader(temp_pdf2)
     
+    # Get fresh copies of the image pages
     img_page1 = reader_img1.pages[0]
     img_page2 = reader_img2.pages[0]
     
@@ -338,25 +339,28 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     tx2 = common_x
     ty2 = 36
     
-    # Apply transformations
+    # Calculate scale
     target_scale = (img_width / 1500) * scale_factor
-    img_page1.add_transformation((target_scale, 0, 0, target_scale, tx1, ty1))
-    img_page2.add_transformation((target_scale, 0, 0, target_scale, tx2, ty2))
     
-    # Get target page and merge images
-    original_page = reader.pages[target]
+    # Apply transformations to image pages BEFORE merging
+    # Transformation matrix: [a, b, c, d, e, f] where a=d=scale, e=x, f=y
+    img_page1.add_transformation([target_scale, 0, 0, target_scale, tx1, ty1])
+    img_page2.add_transformation([target_scale, 0, 0, target_scale, tx2, ty2])
     
-    # Small delay before merging to ensure objects are ready
+    # Wait to ensure transformations are applied
     time.sleep(0.1)
     
-    # Merge images - bottom first, then top (so top overlays bottom)
-    original_page.merge_page(img_page2)
-    time.sleep(0.05)  # Small delay between merges
-    original_page.merge_page(img_page1)
-    
-    # Create output writer
+    # Create writer
     writer = PdfWriter()
-    for page in reader.pages:
+    
+    # Add pages
+    for i in range(num_pages):
+        page = reader.pages[i]
+        if i == target:
+            # Merge images onto this page
+            page.merge_page(img_page2)
+            time.sleep(0.05)
+            page.merge_page(img_page1)
         writer.add_page(page)
     
     # Write output with explicit flush
