@@ -236,21 +236,21 @@ def png_to_pdf(png_path, pdf_path):
         # Ensure image is fully loaded
         img = Image.open(png_path)
         img.load()  # Force load all data
-        time.sleep(0.2)  # Wait for image to be fully in memory
+        time.sleep(0.5)  # Wait for image to be fully in memory
         
         # Save as PDF
         img.save(pdf_path, "PDF", resolution=100.0)
         img.close()  # Explicitly close the image
         
         # Longer delay to ensure file is written and closed properly
-        time.sleep(0.3)
+        time.sleep(0.6)
         
         # Verify the PDF was created
         if not os.path.exists(pdf_path):
             raise RuntimeError(f"PDF file was not created: {pdf_path}")
         
         # Wait for file to be fully written (check file size stabilizes)
-        max_wait = 3.0  # Increased to 3 seconds
+        max_wait = 5.0  # Increased to 5 seconds for maximum reliability
         start_time = time.time()
         last_size = 0
         stable_count = 0
@@ -263,10 +263,10 @@ def png_to_pdf(png_path, pdf_path):
             else:
                 stable_count = 0
             last_size = current_size
-            time.sleep(0.1)
+            time.sleep(0.15)
         
         # Final verification delay
-        time.sleep(0.2)
+        time.sleep(0.4)
             
     except Exception as e:
         print(f"Error converting {png_path} to PDF: {e}")
@@ -322,11 +322,11 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     
     # Convert images with longer delays
     png_to_pdf(image1, temp_pdf1)
-    time.sleep(0.3)  # Wait between conversions
+    time.sleep(0.6)  # Wait between conversions
     png_to_pdf(image2, temp_pdf2)
     
     # Additional delay to ensure files are fully written and available
-    time.sleep(0.5)
+    time.sleep(1.0)
     
     # Verify temp PDFs with detailed checks
     for idx, temp_pdf in enumerate([temp_pdf1, temp_pdf2], 1):
@@ -349,7 +349,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
         raise RuntimeError(f"Failed to read template PDF: {e}")
     
     # Wait before reading temp PDFs
-    time.sleep(0.3)
+    time.sleep(0.6)
     
     # Read image PDFs with careful error handling
     try:
@@ -359,7 +359,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
         raise RuntimeError(f"Failed to read temp PDFs: {e}")
     
     # Wait before accessing pages
-    time.sleep(0.2)
+    time.sleep(0.5)
     
     # Get fresh copies of the image pages
     try:
@@ -390,11 +390,11 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     # Apply transformations to image pages BEFORE merging
     # Transformation matrix: [a, b, c, d, e, f] where a=d=scale, e=x, f=y
     img_page1.add_transformation([target_scale, 0, 0, target_scale, tx1, ty1])
-    time.sleep(0.2)  # Wait after first transformation
+    time.sleep(0.5)  # Wait after first transformation
     img_page2.add_transformation([target_scale, 0, 0, target_scale, tx2, ty2])
     
     # Longer wait to ensure transformations are fully applied
-    time.sleep(0.4)
+    time.sleep(0.8)
     
     # Create writer
     writer = PdfWriter()
@@ -408,10 +408,10 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
             # Merge images onto this page with longer delays
             print(f"    Merging bottom image...")
             page.merge_page(img_page2)
-            time.sleep(0.3)  # Longer wait between merges
+            time.sleep(0.6)  # Longer wait between merges
             print(f"    Merging top image...")
             page.merge_page(img_page1)
-            time.sleep(0.2)
+            time.sleep(0.5)
         writer.add_page(page)
     
     print(f"  Writing output PDF...")
@@ -426,7 +426,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
         raise RuntimeError(f"Failed to write output PDF: {e}")
     
     # Longer delay to ensure file is completely written
-    time.sleep(0.5)
+    time.sleep(1.0)
     
     # Verify output exists
     if not os.path.exists(output_pdf):
@@ -438,7 +438,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
         raise RuntimeError(f"Output PDF is empty: {output_pdf}")
     
     # Wait before verification read
-    time.sleep(0.3)
+    time.sleep(0.6)
     
     # Verify readability with retries
     for attempt in range(3):
@@ -665,8 +665,8 @@ def process_all_orders(csv_path):
                 print(f"  ✓ Saved to {output_pdf}")
                 pdf_count += 1
                 
-                # Small delay between PDFs to prevent file system issues
-                time.sleep(0.15)
+                # Longer delay between PDFs to prevent file system issues
+                time.sleep(0.5)
                 
             except Exception as e:
                 print(f"  ✗ ERROR creating PDF: {e}")

@@ -727,7 +727,7 @@ pluto-captain,Sophia"""
                 parts = line.split(',', 1)
                 character = parts[0].strip()
                 name = parts[1].strip() if len(parts) > 1 else ""
-                orders.append((character, name if name else "(no personalization)"))
+                orders.append((character, name))  # Keep empty string for no personalization
         
         # Update preview
         self.preview_text.delete(1.0, tk.END)
@@ -735,7 +735,8 @@ pluto-captain,Sophia"""
         self.preview_text.insert(tk.END, "-" * 55 + "\n")
         
         for character, name in orders:
-            self.preview_text.insert(tk.END, f"{character:<30} {name:<25}\n")
+            display_name = name if name else "(no name)"
+            self.preview_text.insert(tk.END, f"{character:<30} {display_name:<25}\n")
         
         self.orders_count.set(f"{len(orders)} orders")
         self.status_text.set(f"Preview ready: {len(orders)} orders")
@@ -1325,7 +1326,8 @@ pluto-captain,Sophia"""
             missing = []
             for o in active_orders:
                 if not os.path.exists(os.path.join(images_dir, f"{o['character']}.png")):
-                    missing.append(f"{o['character']} (for {o['name']})")
+                    display_name = o['name'] if o['name'] else "(no name)"
+                    missing.append(f"{o['character']} (for {display_name})")
             
             if missing:
                 response = messagebox.askyesno(
