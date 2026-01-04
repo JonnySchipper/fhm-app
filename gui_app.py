@@ -20,6 +20,7 @@ import json
 import shutil
 import subprocess
 import platform
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -1565,12 +1566,22 @@ pluto-captain,Sophia"""
                         self.master_pdf_path = master_pdf_name
                         self.master_pdf_btn.config(state=tk.NORMAL)
                         self.status_text.set(f"✓ Complete! Master PDF: {master_pdf_name}")
+                        
+                        # Automatically open the master PDF
+                        try:
+                            self.log(f"Opening master PDF...", "info")
+                            open_file_or_folder(master_pdf_name)
+                            time.sleep(0.5)  # Give system time to open the file
+                        except Exception as e:
+                            self.log(f"Could not auto-open PDF: {e}", "warning")
+                        
                         messagebox.showinfo(
                             "Success",
                             f"Orders processed successfully!\n\n"
                             f"✓ {len(pdf_files)} individual PDFs created\n"
-                            f"✓ Master PDF created: {master_pdf_name}\n\n"
-                            f"Click 'Open Master PDF' to view!"
+                            f"✓ Master PDF created: {master_pdf_name}\n"
+                            f"✓ Master PDF opened automatically!\n\n"
+                            f"Check your PDF viewer!"
                         )
                     else:
                         self.status_text.set("✓ Orders processed successfully!")
