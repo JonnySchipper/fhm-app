@@ -790,13 +790,20 @@ pluto-captain,Sophia"""
         scrollbar = tk.Scrollbar(preview_window, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg="white")
         
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Update scroll region when content changes
         scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
         
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        # Make scrollable frame expand to canvas width
+        def configure_canvas_width(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+        
+        canvas.bind('<Configure>', configure_canvas_width)
         
         # Store order data (will be updated as user edits)
         order_data = []
@@ -1197,15 +1204,7 @@ pluto-captain,Sophia"""
         )
         add_btn.pack()
         
-        # Pack scrollbar and canvas
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
-        
-        # Initialize existing orders (AFTER canvas is packed)
-        for character, name in orders:
-            create_order_row(character, name)
-        
-        # Bottom control panel
+        # Bottom control panel (pack BEFORE canvas so it reserves space at bottom)
         bottom_frame = tk.Frame(preview_window, bg="#f0f0f0", relief=tk.RAISED, bd=2)
         bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
         
@@ -1218,6 +1217,19 @@ pluto-captain,Sophia"""
             fg="#333"
         )
         summary_label.pack(pady=10)
+        
+        # Pack scrollbar and canvas (pack AFTER bottom frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Initialize existing orders (AFTER canvas is packed)
+        for character, name in orders:
+            create_order_row(character, name)
+        
+        # Force canvas to update its scroll region
+        canvas.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        
         update_summary()
         
         # Buttons
