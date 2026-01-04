@@ -53,7 +53,7 @@ pip install -r requirements.txt
 ### 3. Set up API Key (for AI parsing feature)
 **Optional but recommended for AI parsing**
 
-Create `C:\source\grok_config.txt` with your Grok API key.
+Create `grok_config.txt` in the parent folder (one level up) with your Grok API key.
 
 See [API_KEY_SETUP.md](API_KEY_SETUP.md) for detailed instructions.
 

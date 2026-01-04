@@ -6,28 +6,34 @@ The AI parsing feature requires a Grok API key. For security, the key is **not**
 
 ## Setup Instructions
 
-### Option 1: System-Wide Config (Recommended)
+### Option 1: Parent Folder (Recommended)
 
-1. Create folder: `C:\source\`
-2. Create file: `C:\source\grok_config.txt`
+1. Navigate to the parent folder (one level up from rafas_folder)
+2. Create file: `grok_config.txt`
 3. Add your API key as the only content (one line)
 4. Save
 
+**Example:**
+```
+If rafas_folder is at: c:\dev\canva\rafas_folder\
+Create key file at:    c:\dev\canva\grok_config.txt
+```
+
 **Advantages:**
-- Works for all your projects
-- Survives folder deletions
-- One place to update
+- Shared across all subfolders
+- Easy to find and update
+- Outside the main package folder
 
 ### Option 2: Local Config
 
-1. Copy `grok_config.txt.sample` to `grok_config.txt`
+1. Copy `grok_config.txt.sample` to `grok_config.txt` (in rafas_folder)
 2. Open `grok_config.txt`
 3. Replace `YOUR-GROK-API-KEY-HERE` with your actual key
 4. Save
 
 **Advantages:**
-- Project-specific
-- Portable with project folder
+- Self-contained
+- Portable with this folder only
 
 ## Getting Your API Key
 

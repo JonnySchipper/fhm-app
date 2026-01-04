@@ -76,6 +76,7 @@ class OrderProcessorGUI:
         self.processing = False
         self.ai_processing = False
         self.master_pdf_path = None
+        self.zoom_level = 1.0  # Default zoom level
         
         # Get available images
         self.image_list = self.get_available_images()
@@ -108,6 +109,55 @@ class OrderProcessorGUI:
             fg="#e0e0e0"
         )
         subtitle_label.pack(pady=(0, 10))
+        
+        # Zoom controls (top right)
+        zoom_frame = tk.Frame(title_frame, bg=self.accent_color)
+        zoom_frame.place(relx=1.0, rely=0.5, anchor=tk.E, x=-10)
+        
+        zoom_label = tk.Label(
+            zoom_frame,
+            text="Zoom:",
+            font=("Segoe UI", 9),
+            bg=self.accent_color,
+            fg="white"
+        )
+        zoom_label.pack(side=tk.LEFT, padx=(0, 5))
+        
+        zoom_out_btn = tk.Button(
+            zoom_frame,
+            text="−",
+            command=self.zoom_out,
+            font=("Segoe UI", 12, "bold"),
+            bg="white",
+            fg="black",
+            relief=tk.FLAT,
+            width=2,
+            cursor="hand2"
+        )
+        zoom_out_btn.pack(side=tk.LEFT, padx=2)
+        
+        self.zoom_display = tk.Label(
+            zoom_frame,
+            text="100%",
+            font=("Segoe UI", 9),
+            bg=self.accent_color,
+            fg="white",
+            width=5
+        )
+        self.zoom_display.pack(side=tk.LEFT, padx=2)
+        
+        zoom_in_btn = tk.Button(
+            zoom_frame,
+            text="+",
+            command=self.zoom_in,
+            font=("Segoe UI", 12, "bold"),
+            bg="white",
+            fg="black",
+            relief=tk.FLAT,
+            width=2,
+            cursor="hand2"
+        )
+        zoom_in_btn.pack(side=tk.LEFT, padx=2)
         
         # Main Content Frame
         content_frame = tk.Frame(self.root, bg=self.bg_color)
@@ -201,13 +251,28 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.parse_with_ai,
             font=("Segoe UI", 10, "bold"),
             bg=self.ai_color,
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=25,
             pady=8,
             cursor="hand2"
         )
         self.ai_parse_btn.pack(side=tk.LEFT)
+        
+        # Quick Parse button (non-reasoning)
+        self.quick_parse_btn = tk.Button(
+            ai_btn_frame,
+            text="⚡ Quick Parse",
+            command=self.quick_parse_with_ai,
+            font=("Segoe UI", 9),
+            bg="#17a2b8",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=8,
+            cursor="hand2"
+        )
+        self.quick_parse_btn.pack(side=tk.LEFT, padx=(5, 0))
         
         # Clear raw button
         clear_raw_btn = tk.Button(
@@ -216,7 +281,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.clear_raw_text,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=8,
@@ -231,7 +296,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.load_raw_sample,
             font=("Segoe UI", 9),
             bg="#f0ad4e",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=8,
@@ -276,7 +341,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         self.order_input.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         # Placeholder text
-        placeholder = "mickey-captain,Johnny\nminnie-normal,Sarah\nstitch-normal,Michael\nmoana-normal,Emma"
+        placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
         self.order_input.insert(1.0, placeholder)
         self.order_input.config(fg="#999")
         
@@ -296,7 +361,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.browse_file,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=5,
@@ -311,7 +376,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.clear_input,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=5,
@@ -326,7 +391,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.load_sample,
             font=("Segoe UI", 9),
             bg="#f0ad4e",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=5,
@@ -364,7 +429,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.preview_orders,
             font=("Segoe UI", 9),
             bg=self.accent_color,
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=3,
@@ -427,7 +492,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.process_orders,
             font=("Segoe UI", 11, "bold"),
             bg=self.success_color,
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=30,
             pady=10,
@@ -446,7 +511,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.view_outputs,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=10,
@@ -462,7 +527,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.open_master_pdf,
             font=("Segoe UI", 9, "bold"),
             bg="#17a2b8",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=10,
@@ -489,7 +554,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.clear_all,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=10,
@@ -504,7 +569,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.show_help,
             font=("Segoe UI", 9),
             bg="#f0ad4e",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=10,
@@ -519,7 +584,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             command=self.view_archive,
             font=("Segoe UI", 9),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=10,
@@ -545,14 +610,14 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         
     def clear_placeholder(self, event):
         """Clear placeholder text on focus"""
-        if self.order_input.get(1.0, tk.END).strip() in ["mickey-captain,Johnny\nminnie-normal,Sarah\nstitch-normal,Michael\nmoana-normal,Emma", ""]:
+        if self.order_input.get(1.0, tk.END).strip() in ["mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma", ""]:
             self.order_input.delete(1.0, tk.END)
             self.order_input.config(fg="#333")
             
     def restore_placeholder(self, event):
         """Restore placeholder if empty"""
         if not self.order_input.get(1.0, tk.END).strip():
-            placeholder = "mickey-captain,Johnny\nminnie-normal,Sarah\nstitch-normal,Michael\nmoana-normal,Emma"
+            placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
             self.order_input.insert(1.0, placeholder)
             self.order_input.config(fg="#999")
             
@@ -577,10 +642,10 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         """Load sample orders"""
         sample = """mickey-captain,Johnny
 minnie-captain,Sarah
-donald-normal,Michael
-daisy-normal,Emma
-goofy-normal,Oliver
-pluto-normal,Sophia"""
+donald-captain,Michael
+daisy-captain,Emma
+goofy-captain,Oliver
+pluto-captain,Sophia"""
         self.order_input.delete(1.0, tk.END)
         self.order_input.insert(1.0, sample)
         self.order_input.config(fg="#333")
@@ -658,6 +723,621 @@ pluto-normal,Sophia"""
         
         self.orders_count.set(f"{len(orders)} orders")
         self.status_text.set(f"Preview ready: {len(orders)} orders")
+        
+        # Show image preview window
+        self.show_image_preview(orders)
+    
+    def show_image_preview(self, orders):
+        """Show an interactive window to edit orders with image previews"""
+        try:
+            from PIL import Image, ImageTk
+        except ImportError:
+            messagebox.showinfo("Preview Unavailable", "Image preview requires the Pillow library.\nInstall it with: pip install Pillow")
+            return
+        
+        # Get the images directory
+        parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
+        images_dir = os.path.join(parent_dir, 'fhm_images')
+        
+        if not os.path.exists(images_dir):
+            # Try current directory's fhm_images
+            images_dir = os.path.join(os.getcwd(), 'fhm_images')
+            if not os.path.exists(images_dir):
+                messagebox.showwarning("Images Not Found", "Cannot find fhm_images folder.")
+                return
+        
+        # Get all available images
+        available_images = []
+        for file in sorted(os.listdir(images_dir)):
+            if file.lower().endswith('.png'):
+                available_images.append(file.replace('.png', ''))
+        
+        # Create preview window
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title("✏️ Edit & Confirm Orders")
+        preview_window.geometry("950x700")
+        preview_window.configure(bg="white")
+        
+        # Make it modal
+        preview_window.transient(self.root)
+        preview_window.grab_set()
+        
+        # Title
+        title_frame = tk.Frame(preview_window, bg=self.accent_color, height=70)
+        title_frame.pack(fill=tk.X)
+        title_frame.pack_propagate(False)
+        
+        title_label = tk.Label(
+            title_frame,
+            text="✏️ Edit & Confirm Orders",
+            font=("Segoe UI", 16, "bold"),
+            bg=self.accent_color,
+            fg="white"
+        )
+        title_label.pack(pady=(10, 0))
+        
+        subtitle_label = tk.Label(
+            title_frame,
+            text="Select images, edit names, then click 'Confirm & Process'",
+            font=("Segoe UI", 9),
+            bg=self.accent_color,
+            fg="#e0e0e0"
+        )
+        subtitle_label.pack(pady=(0, 10))
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(preview_window, bg="white")
+        scrollbar = tk.Scrollbar(preview_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg="white")
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Store order data (will be updated as user edits)
+        order_data = []
+        order_widgets = []  # Store references to widgets for updates
+        
+        # Function to create an order row
+        def create_order_row(character="", name=""):
+            """Create a single editable order row"""
+            idx = len(order_data)
+            order_data.append({'character': character, 'name': name})
+            
+            # Create frame for this order
+            order_frame = tk.Frame(scrollable_frame, bg="white", relief=tk.RIDGE, bd=2)
+            order_frame.pack(fill=tk.X, padx=10, pady=8)
+            
+            # Image preview (left side) - fixed size container
+            image_container = tk.Frame(order_frame, bg="white", width=100, height=100)
+            image_container.pack(side=tk.LEFT, padx=10, pady=10)
+            image_container.pack_propagate(False)  # Prevent resizing
+            
+            # Load initial image
+            image_filename = f"{character}.png"
+            image_path = os.path.join(images_dir, image_filename)
+            
+            photo = None
+            if os.path.exists(image_path):
+                try:
+                    img = Image.open(image_path)
+                    img.thumbnail((100, 100), Image.Resampling.LANCZOS)
+                    photo = ImageTk.PhotoImage(img)
+                except:
+                    photo = None
+            
+            # Image label - fills the container
+            img_label = tk.Label(image_container, bg="#f0f0f0", relief=tk.SUNKEN, bd=1)
+            if photo:
+                img_label.config(image=photo)
+                if not hasattr(self, '_preview_images'):
+                    self._preview_images = []
+                self._preview_images.append(photo)
+            else:
+                img_label.config(text="No\nImage", font=("Segoe UI", 10), fg="#999")
+            img_label.pack(fill=tk.BOTH, expand=True)
+            
+            # Edit controls (right side)
+            edit_frame = tk.Frame(order_frame, bg="white")
+            edit_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=10)
+            
+            # Row 1: Character selection
+            char_row = tk.Frame(edit_frame, bg="white")
+            char_row.pack(fill=tk.X, pady=(0, 5))
+            
+            tk.Label(
+                char_row,
+                text="Character:",
+                font=("Segoe UI", 9, "bold"),
+                bg="white",
+                width=10,
+                anchor=tk.W
+            ).pack(side=tk.LEFT)
+            
+            # Character dropdown with search
+            char_var = tk.StringVar(value=character)
+            char_combo = ttk.Combobox(
+                char_row,
+                textvariable=char_var,
+                values=available_images,
+                font=("Segoe UI", 9),
+                width=28,
+                state="normal"
+            )
+            char_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            
+            # Search button
+            def make_search_handler(char_v):
+                return lambda: open_image_search(char_v)
+            
+            search_btn = tk.Button(
+                char_row,
+                text="🔍 Search",
+                command=make_search_handler(char_var),
+                font=("Segoe UI", 8),
+                bg="#17a2b8",
+                fg="black",
+                relief=tk.FLAT,
+                padx=8,
+                pady=2,
+                cursor="hand2"
+            )
+            search_btn.pack(side=tk.LEFT)
+            
+            # Row 2: Name input
+            name_row = tk.Frame(edit_frame, bg="white")
+            name_row.pack(fill=tk.X, pady=(0, 5))
+            
+            tk.Label(
+                name_row,
+                text="Name:",
+                font=("Segoe UI", 9, "bold"),
+                bg="white",
+                width=10,
+                anchor=tk.W
+            ).pack(side=tk.LEFT)
+            
+            name_var = tk.StringVar(value=name)
+            name_entry = tk.Entry(
+                name_row,
+                textvariable=name_var,
+                font=("Segoe UI", 10),
+                bg="#f8f9fa"
+            )
+            name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            
+            # Row 3: Status and actions
+            action_row = tk.Frame(edit_frame, bg="white")
+            action_row.pack(fill=tk.X, pady=(5, 0))
+            
+            status_label = tk.Label(
+                action_row,
+                text="✓ Ready" if os.path.exists(image_path) else "⚠ Not found",
+                font=("Segoe UI", 8),
+                bg="white",
+                fg="#5cb85c" if os.path.exists(image_path) else "#f0ad4e"
+            )
+            status_label.pack(side=tk.LEFT)
+            
+            # Delete button
+            def make_delete_handler(idx):
+                return lambda: delete_order(idx)
+            
+            delete_btn = tk.Button(
+                action_row,
+                text="🗑️ Delete",
+                command=make_delete_handler(idx),
+                font=("Segoe UI", 8),
+                bg="#d9534f",
+                fg="white",
+                relief=tk.FLAT,
+                padx=8,
+                pady=2,
+                cursor="hand2"
+            )
+            delete_btn.pack(side=tk.RIGHT, padx=(5, 0))
+            
+            # Function to update image when character changes
+            def make_update_handler(idx, img_lbl, char_v, name_v, status_lbl):
+                def update_image(*args):
+                    new_char = char_v.get()
+                    order_data[idx]['character'] = new_char
+                    order_data[idx]['name'] = name_v.get()
+                    
+                    # Update image
+                    new_image_path = os.path.join(images_dir, f"{new_char}.png")
+                    if os.path.exists(new_image_path):
+                        try:
+                            img = Image.open(new_image_path)
+                            img.thumbnail((100, 100), Image.Resampling.LANCZOS)
+                            new_photo = ImageTk.PhotoImage(img)
+                            img_lbl.config(image=new_photo, text="", bg="#f0f0f0")
+                            self._preview_images.append(new_photo)
+                            status_lbl.config(text="✓ Ready", fg="#5cb85c")
+                        except:
+                            img_lbl.config(image="", text="Error\nLoading", bg="#fff0f0")
+                            status_lbl.config(text="❌ Error", fg="#d9534f")
+                    else:
+                        img_lbl.config(image="", text="No\nImage", bg="#f0f0f0")
+                        status_lbl.config(text="⚠ Not found", fg="#f0ad4e")
+                return update_image
+            
+            update_handler = make_update_handler(idx, img_label, char_var, name_var, status_label)
+            char_combo.bind('<<ComboboxSelected>>', update_handler)
+            char_var.trace_add('write', lambda *args, h=update_handler: h())
+            name_var.trace_add('write', lambda *args, i=idx, n=name_var: setattr(order_data[i], 'name', n.get()) or order_data.__setitem__(i, {'character': order_data[i]['character'], 'name': n.get()}))
+            
+            order_widgets.append({
+                'frame': order_frame,
+                'char_var': char_var,
+                'name_var': name_var,
+                'img_label': img_label,
+                'status_label': status_label
+            })
+            
+            update_summary()
+            return idx
+        
+        # Image search dialog
+        def open_image_search(target_var):
+            """Open a searchable dialog to select character images"""
+            search_window = tk.Toplevel(preview_window)
+            search_window.title("🔍 Search Character Images")
+            search_window.geometry("700x600")
+            search_window.configure(bg="white")
+            search_window.transient(preview_window)
+            
+            # Title
+            tk.Label(
+                search_window,
+                text="🔍 Search Character Images",
+                font=("Segoe UI", 14, "bold"),
+                bg="white"
+            ).pack(pady=10)
+            
+            # Search input
+            search_frame = tk.Frame(search_window, bg="white")
+            search_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+            
+            tk.Label(
+                search_frame,
+                text="Search:",
+                font=("Segoe UI", 10, "bold"),
+                bg="white"
+            ).pack(side=tk.LEFT, padx=(0, 5))
+            
+            search_var = tk.StringVar()
+            search_entry = tk.Entry(
+                search_frame,
+                textvariable=search_var,
+                font=("Segoe UI", 11),
+                bg="#f8f9fa"
+            )
+            search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            search_entry.focus()
+            
+            # Results info
+            results_label = tk.Label(
+                search_frame,
+                text="",
+                font=("Segoe UI", 9),
+                bg="white",
+                fg="#666"
+            )
+            results_label.pack(side=tk.LEFT)
+            
+            # Scrollable results
+            results_canvas = tk.Canvas(search_window, bg="white")
+            results_scrollbar = tk.Scrollbar(search_window, orient="vertical", command=results_canvas.yview)
+            results_frame = tk.Frame(results_canvas, bg="white")
+            
+            results_frame.bind(
+                "<Configure>",
+                lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all"))
+            )
+            
+            results_canvas.create_window((0, 0), window=results_frame, anchor="nw")
+            results_canvas.configure(yscrollcommand=results_scrollbar.set)
+            
+            results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+            
+            # Function to display results
+            def display_results(query=""):
+                # Clear previous results
+                for widget in results_frame.winfo_children():
+                    widget.destroy()
+                
+                # Filter images
+                if query:
+                    filtered = [img for img in available_images if query.lower() in img.lower()]
+                else:
+                    filtered = available_images
+                
+                results_label.config(text=f"{len(filtered)} found")
+                
+                if not filtered:
+                    tk.Label(
+                        results_frame,
+                        text="No matches found. Try a different search term.",
+                        font=("Segoe UI", 10),
+                        bg="white",
+                        fg="#999"
+                    ).pack(pady=20)
+                    return
+                
+                # Display in grid with thumbnails
+                row_frame = None
+                for i, img_name in enumerate(filtered[:50]):  # Limit to 50 results
+                    if i % 4 == 0:
+                        row_frame = tk.Frame(results_frame, bg="white")
+                        row_frame.pack(fill=tk.X, pady=5)
+                    
+                    # Create button with thumbnail
+                    item_frame = tk.Frame(row_frame, bg="white", relief=tk.RAISED, bd=1)
+                    item_frame.pack(side=tk.LEFT, padx=5, pady=5)
+                    
+                    # Load thumbnail
+                    img_path = os.path.join(images_dir, f"{img_name}.png")
+                    if os.path.exists(img_path):
+                        try:
+                            img = Image.open(img_path)
+                            img.thumbnail((80, 80), Image.Resampling.LANCZOS)
+                            photo = ImageTk.PhotoImage(img)
+                            
+                            if not hasattr(self, '_search_images'):
+                                self._search_images = []
+                            self._search_images.append(photo)
+                            
+                            img_label = tk.Label(item_frame, image=photo, bg="white")
+                            img_label.pack()
+                        except:
+                            tk.Label(item_frame, text="Error", font=("Segoe UI", 8), bg="white").pack()
+                    else:
+                        tk.Label(item_frame, text="N/A", font=("Segoe UI", 8), bg="white").pack()
+                    
+                    # Character name
+                    name_label = tk.Label(
+                        item_frame,
+                        text=img_name[:15] + "..." if len(img_name) > 15 else img_name,
+                        font=("Segoe UI", 7),
+                        bg="white",
+                        fg="#333",
+                        wraplength=80
+                    )
+                    name_label.pack()
+                    
+                    # Select button
+                    def make_select_handler(name):
+                        def select():
+                            target_var.set(name)
+                            search_window.destroy()
+                        return select
+                    
+                    select_btn = tk.Button(
+                        item_frame,
+                        text="Select",
+                        command=make_select_handler(img_name),
+                        font=("Segoe UI", 7),
+                        bg=self.accent_color,
+                        fg="black",
+                        relief=tk.FLAT,
+                        cursor="hand2"
+                    )
+                    select_btn.pack(fill=tk.X)
+                
+                if len(filtered) > 50:
+                    tk.Label(
+                        results_frame,
+                        text=f"Showing first 50 of {len(filtered)} results. Refine your search for more.",
+                        font=("Segoe UI", 9, "italic"),
+                        bg="white",
+                        fg="#666"
+                    ).pack(pady=10)
+            
+            # Bind search
+            search_var.trace_add('write', lambda *args: display_results(search_var.get()))
+            
+            # Initial display
+            display_results(target_var.get() if target_var.get() else "")
+            
+            # Enable mousewheel scrolling
+            def _on_search_mousewheel(event):
+                results_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            results_canvas.bind_all("<MouseWheel>", _on_search_mousewheel)
+            
+            # Cleanup
+            def on_search_close():
+                results_canvas.unbind_all("<MouseWheel>")
+                if hasattr(self, '_search_images'):
+                    self._search_images.clear()
+                search_window.destroy()
+            
+            search_window.protocol("WM_DELETE_WINDOW", on_search_close)
+        
+        # Add Order button (above canvas)
+        add_order_frame = tk.Frame(preview_window, bg="white")
+        add_order_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+        
+        def add_new_order():
+            create_order_row("", "")
+            # Scroll to bottom
+            canvas.update_idletasks()
+            canvas.yview_moveto(1.0)
+        
+        add_btn = tk.Button(
+            add_order_frame,
+            text="➕ Add New Order",
+            command=add_new_order,
+            font=("Segoe UI", 10, "bold"),
+            bg="#28a745",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=8,
+            cursor="hand2"
+        )
+        add_btn.pack()
+        
+        # Initialize existing orders
+        for character, name in orders:
+            create_order_row(character, name)
+        
+        # Delete order function
+        def delete_order(idx):
+            if messagebox.askyesno("Delete Order", f"Delete order #{idx + 1}?"):
+                order_widgets[idx]['frame'].destroy()
+                order_data[idx] = None  # Mark as deleted
+                update_summary()
+        
+        # Function to update summary
+        def update_summary():
+            active_orders = [o for o in order_data if o is not None]
+            found = sum(1 for o in active_orders if os.path.exists(os.path.join(images_dir, f"{o['character']}.png")))
+            missing = len(active_orders) - found
+            summary_label.config(text=f"✓ Ready: {found}  |  ⚠ Issues: {missing}  |  Total: {len(active_orders)}")
+        
+        # Pack scrollbar and canvas
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Bottom control panel
+        bottom_frame = tk.Frame(preview_window, bg="#f0f0f0", relief=tk.RAISED, bd=2)
+        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Summary
+        summary_label = tk.Label(
+            bottom_frame,
+            text="",
+            font=("Segoe UI", 10, "bold"),
+            bg="#f0f0f0",
+            fg="#333"
+        )
+        summary_label.pack(pady=10)
+        update_summary()
+        
+        # Buttons
+        button_frame = tk.Frame(bottom_frame, bg="#f0f0f0")
+        button_frame.pack(pady=(0, 15))
+        
+        # Confirm and Process button
+        def confirm_and_process():
+            # Collect active orders
+            active_orders = [o for o in order_data if o is not None]
+            
+            if not active_orders:
+                messagebox.showwarning("No Orders", "No orders to process!")
+                return
+            
+            # Check for missing images
+            missing = []
+            for o in active_orders:
+                if not os.path.exists(os.path.join(images_dir, f"{o['character']}.png")):
+                    missing.append(f"{o['character']} (for {o['name']})")
+            
+            if missing:
+                response = messagebox.askyesno(
+                    "Missing Images",
+                    f"{len(missing)} order(s) have missing images:\n\n" +
+                    "\n".join(missing[:5]) +
+                    ("\n..." if len(missing) > 5 else "") +
+                    "\n\nContinue anyway?",
+                    icon='warning'
+                )
+                if not response:
+                    return
+            
+            # Update main input with edited orders
+            orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
+            self.order_input.delete(1.0, tk.END)
+            self.order_input.insert(1.0, orders_text)
+            self.order_input.config(fg="#333")
+            self.update_count()
+            
+            # Close preview and start processing
+            preview_window.destroy()
+            self.process_orders()
+        
+        confirm_btn = tk.Button(
+            button_frame,
+            text="✅ Confirm & Process Orders",
+            command=confirm_and_process,
+            font=("Segoe UI", 11, "bold"),
+            bg=self.success_color,
+            fg="black",
+            relief=tk.FLAT,
+            padx=30,
+            pady=10,
+            cursor="hand2"
+        )
+        confirm_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Update only button
+        def update_only():
+            active_orders = [o for o in order_data if o is not None]
+            if not active_orders:
+                messagebox.showwarning("No Orders", "No orders to update!")
+                return
+            
+            orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
+            self.order_input.delete(1.0, tk.END)
+            self.order_input.insert(1.0, orders_text)
+            self.order_input.config(fg="#333")
+            self.update_count()
+            
+            messagebox.showinfo("Updated", "Orders updated in the main window!")
+            preview_window.destroy()
+        
+        update_btn = tk.Button(
+            button_frame,
+            text="💾 Save Changes",
+            command=update_only,
+            font=("Segoe UI", 10),
+            bg="#17a2b8",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=10,
+            cursor="hand2"
+        )
+        update_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Cancel button
+        def cancel():
+            if messagebox.askyesno("Cancel", "Discard all changes?"):
+                preview_window.destroy()
+        
+        cancel_btn = tk.Button(
+            button_frame,
+            text="❌ Cancel",
+            command=cancel,
+            font=("Segoe UI", 10),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=10,
+            cursor="hand2"
+        )
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Enable mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Cleanup on close
+        def on_close():
+            canvas.unbind_all("<MouseWheel>")
+            if hasattr(self, '_preview_images'):
+                self._preview_images.clear()
+            preview_window.destroy()
+        
+        preview_window.protocol("WM_DELETE_WINDOW", lambda: cancel())
             
     def log(self, message, level="info"):
         """Add message to log"""
@@ -932,7 +1612,7 @@ pluto-normal,Sophia"""
         """Clear all fields"""
         self.csv_path.set("")
         self.order_input.delete(1.0, tk.END)
-        placeholder = "mickey-captain,Johnny\nminnie-normal,Sarah\nstitch-normal,Michael\nmoana-normal,Emma"
+        placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
         self.order_input.insert(1.0, placeholder)
         self.order_input.config(fg="#999")
         self.preview_text.delete(1.0, tk.END)
@@ -1010,7 +1690,7 @@ Stitch for Sophia"""
         self.status_text.set("Sample order loaded - click 'Parse with AI' to process")
         
     def parse_with_ai(self):
-        """Parse raw order text with Grok AI"""
+        """Parse raw order text with Grok AI (reasoning model)"""
         raw_text = self.raw_text.get(1.0, tk.END).strip()
         
         if not raw_text or self.raw_text.cget("fg") == "#999":
@@ -1022,11 +1702,13 @@ Stitch for Sophia"""
             return
         
         if not GROK_API_KEY:
+            parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
             messagebox.showerror(
                 "API Key Missing", 
                 "Grok API key not found!\n\n"
-                "Please create one of these files with your API key:\n"
-                "• C:\\source\\grok_config.txt\n"
+                "Please create a file with your API key at:\n"
+                f"• {parent_dir}\\grok_config.txt (recommended)\n"
+                "OR\n"
                 "• grok_config.txt (in this folder)\n\n"
                 "See grok_config.txt.sample for instructions."
             )
@@ -1036,21 +1718,59 @@ Stitch for Sophia"""
             messagebox.showerror("No Images", "No images found in FHM_Images folder.\nMake sure it's in the parent directory.")
             return
         
-        # Run in thread
-        thread = threading.Thread(target=self.parse_with_ai_thread, args=(raw_text,))
+        # Run in thread with reasoning model
+        thread = threading.Thread(target=self.parse_with_ai_thread, args=(raw_text, True))
+        thread.daemon = True
+        thread.start()
+    
+    def quick_parse_with_ai(self):
+        """Quick parse with Grok AI (non-reasoning model for faster results)"""
+        raw_text = self.raw_text.get(1.0, tk.END).strip()
+        
+        if not raw_text or self.raw_text.cget("fg") == "#999":
+            messagebox.showwarning("No Text", "Please paste order text first.")
+            return
+        
+        if self.ai_processing:
+            messagebox.showinfo("Processing", "AI is already processing...")
+            return
+        
+        if not GROK_API_KEY:
+            parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
+            messagebox.showerror(
+                "API Key Missing", 
+                "Grok API key not found!\n\n"
+                "Please create a file with your API key at:\n"
+                f"• {parent_dir}\\grok_config.txt (recommended)\n"
+                "OR\n"
+                "• grok_config.txt (in this folder)\n\n"
+                "See grok_config.txt.sample for instructions."
+            )
+            return
+        
+        if not self.image_list:
+            messagebox.showerror("No Images", "No images found in FHM_Images folder.\nMake sure it's in the parent directory.")
+            return
+        
+        # Run in thread with non-reasoning model (faster)
+        thread = threading.Thread(target=self.parse_with_ai_thread, args=(raw_text, False))
         thread.daemon = True
         thread.start()
         
-    def parse_with_ai_thread(self, raw_text):
+    def parse_with_ai_thread(self, raw_text, use_reasoning=True):
         """Parse with AI in background thread"""
         try:
             self.ai_processing = True
+            # Disable both AI buttons
             self.root.after(0, lambda: self.ai_parse_btn.config(state=tk.DISABLED, text="🤖 Processing..."))
-            self.root.after(0, lambda: self.status_text.set("AI is parsing your order..."))
-            self.root.after(0, lambda: self.log("Calling Grok AI to parse order text...", "info"))
+            self.root.after(0, lambda: self.quick_parse_btn.config(state=tk.DISABLED, text="⚡ Processing..."))
             
-            # Call Grok API
-            result = self.call_grok_api(self.image_list, raw_text)
+            model_type = "reasoning" if use_reasoning else "quick"
+            self.root.after(0, lambda: self.status_text.set(f"AI is parsing your order ({model_type})..."))
+            self.root.after(0, lambda: self.log(f"Calling Grok AI ({model_type} model) to parse order text...", "info"))
+            
+            # Call Grok API with reasoning parameter
+            result = self.call_grok_api(self.image_list, raw_text, use_reasoning)
             
             if not result:
                 self.root.after(0, lambda: messagebox.showerror("AI Error", "Failed to parse orders. Check the log for details."))
@@ -1089,11 +1809,16 @@ Stitch for Sophia"""
             
         finally:
             self.ai_processing = False
+            # Re-enable both AI buttons
             self.root.after(0, lambda: self.ai_parse_btn.config(state=tk.NORMAL, text="✨ Parse with AI (Grok)"))
+            self.root.after(0, lambda: self.quick_parse_btn.config(state=tk.NORMAL, text="⚡ Quick Parse"))
             
-    def call_grok_api(self, image_list, order_text):
+    def call_grok_api(self, image_list, order_text, use_reasoning=True):
         """Call Grok API to parse order text"""
         images_str = ', '.join(image_list)
+        
+        # Choose model based on use_reasoning
+        model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
         
         prompt = f"""You are parsing Disney-themed magnet orders. Convert the order text into a simple character-name format.
 
@@ -1105,9 +1830,9 @@ Order text:
 Instructions:
 1. Find all personalization names in the order
 2. Match each name to a character based on context
-3. Determine the theme/variant (captain, normal, pumpkin, witch, halloween, etc.)
-4. Match to available images using format: charactername-variant (e.g., mickey-captain, stitch-normal)
-5. If theme unclear, use "normal"
+3. Determine the theme/variant (captain, pumpkin, witch, halloween, pirate, christmas, etc.)
+4. Match to available images using format: charactername-variant (e.g., mickey-captain, stitch-captain)
+5. If theme unclear, use "captain" (NOT normal)
 6. Only return matches you're confident about
 
 Return ONLY a Python dictionary, no extra text:
@@ -1116,8 +1841,8 @@ Return ONLY a Python dictionary, no extra text:
   "PersonName2": "character-variant.png"
 }}
 
-Example input: "Captain Mickey for Johnny, Normal Stitch for Sarah"
-Example output: {{"Johnny": "mickey-captain.png", "Sarah": "stitch-normal.png"}}
+Example input: "Captain Mickey for Johnny, Captain Stitch for Sarah"
+Example output: {{"Johnny": "mickey-captain.png", "Sarah": "stitch-captain.png"}}
 
 Be smart about:
 - Typos (Micky -> mickey, Stitsh -> stitch)
@@ -1133,7 +1858,7 @@ Return the dictionary now:"""
         }
         
         data = {
-            "model": "grok-4-1-fast-non-reasoning",
+            "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
             "max_tokens": 16000
@@ -1165,6 +1890,38 @@ Return the dictionary now:"""
             error_msg = str(e)
             self.root.after(0, lambda msg=error_msg: self.log(f"API Error: {msg}", "error"))
             return {}
+    
+    def zoom_in(self):
+        """Increase app size"""
+        if self.zoom_level < 1.5:  # Max 150%
+            self.zoom_level += 0.1
+            self.apply_zoom()
+    
+    def zoom_out(self):
+        """Decrease app size"""
+        if self.zoom_level > 0.7:  # Min 70%
+            self.zoom_level -= 0.1
+            self.apply_zoom()
+    
+    def apply_zoom(self):
+        """Apply zoom level to window"""
+        # Update zoom display
+        zoom_percent = int(self.zoom_level * 100)
+        self.zoom_display.config(text=f"{zoom_percent}%")
+        
+        # Calculate new size
+        base_width = 1000
+        base_height = 750
+        new_width = int(base_width * self.zoom_level)
+        new_height = int(base_height * self.zoom_level)
+        
+        # Get current position
+        x = self.root.winfo_x()
+        y = self.root.winfo_y()
+        
+        # Apply new size (maintain position)
+        self.root.geometry(f'{new_width}x{new_height}+{x}+{y}')
+        self.root.update_idletasks()
     
     def show_help(self):
         """Show help dialog"""
