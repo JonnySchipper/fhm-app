@@ -262,8 +262,7 @@ def png_to_pdf(png_path, pdf_path):
 
 def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     """
-    Create a PDF by compositing images onto PDF template as a single image.
-    Much more reliable than PDF merging.
+    Overlay two images on a PDF template.
     
     Args:
         input_pdf: Template PDF file path
@@ -280,130 +279,123 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     if not os.path.exists(image2):
         raise FileNotFoundError(f"Image 2 not found: {image2}")
     
-    print(f"  Creating composite with {os.path.basename(image1)} and {os.path.basename(image2)}")
-    
-    # Create temp directory
-    os.makedirs(TEMP_DIR, exist_ok=True)
-    temp_composite = os.path.join(TEMP_DIR, "composite.png")
-    
+    # Validate images
     try:
-        # Step 1: Convert PDF template to image
-        print(f"  Converting PDF template to image...")
-        reader = PdfReader(input_pdf)
-        num_pages = len(reader.pages)
-        target_page = num_pages // 2  # Middle page
-        
-        # Get the page we want to use as template
-        page = reader.pages[target_page]
-        
-        # Get page dimensions (in points)
-        page_box = page.mediabox
-        page_width = float(page_box.width)
-        page_height = float(page_box.height)
-        
-        # Standard PDF is 612x792 points (8.5x11 inches at 72 DPI)
-        # We'll work at higher resolution for quality
-        dpi = 150
-        img_width = int(page_width * dpi / 72)
-        img_height = int(page_height * dpi / 72)
-        
-        # Convert PDF page to image using pdf2image if available, otherwise create blank
-        try:
-            from pdf2image import convert_from_path
-            images = convert_from_path(input_pdf, dpi=dpi, first_page=target_page+1, last_page=target_page+1)
-            base_image = images[0].convert('RGB')
-        except ImportError:
-            # pdf2image not available, create a white background
-            print(f"  Note: pdf2image not available, using white background")
-            base_image = Image.new('RGB', (img_width, img_height), 'white')
-        
-        print(f"  Base image size: {base_image.size}")
-        
-        # Step 2: Load and resize the character images
-        char_img1 = Image.open(image1).convert('RGBA')
-        char_img2 = Image.open(image2).convert('RGBA')
-        
-        # Calculate positions and sizes
-        # Original coordinates from PDF (in points):
-        # Top: x=121, y=396, size=500x500
-        # Bottom: x=121, y=36, size=500x500
-        
-        # Scale to our DPI
-        scale = dpi / 72
-        target_size = int(500 * scale)
-        x_pos = int(121 * scale)
-        
-        # PDF coordinates are from bottom-left, PIL uses top-left
-        # y_top in PIL = page_height - (y_pdf + image_height)
-        y_top = int(page_height * scale - (396 * scale + 500 * scale))
-        y_bottom = int(page_height * scale - (36 * scale + 500 * scale))
-        
-        # Resize character images
-        char_img1 = char_img1.resize((target_size, target_size), Image.Resampling.LANCZOS)
-        char_img2 = char_img2.resize((target_size, target_size), Image.Resampling.LANCZOS)
-        
-        print(f"  Positioning images - Top: ({x_pos}, {y_top}), Bottom: ({x_pos}, {y_bottom})")
-        
-        # Step 3: Composite images onto base
-        # Convert base to RGBA for alpha compositing
-        base_rgba = base_image.convert('RGBA')
-        
-        # Paste images (bottom first, then top)
-        base_rgba.alpha_composite(char_img2, (x_pos, y_bottom))
-        base_rgba.alpha_composite(char_img1, (x_pos, y_top))
-        
-        # Convert back to RGB
-        final_image = base_rgba.convert('RGB')
-        
-        # Save as temporary PNG
-        final_image.save(temp_composite, 'PNG', dpi=(dpi, dpi))
-        print(f"  Composite image saved")
-        
-        # Close images
-        char_img1.close()
-        char_img2.close()
-        base_image.close()
-        base_rgba.close()
-        
-        # Small delay
-        time.sleep(0.1)
-        
-        # Step 4: Convert composite PNG to PDF
-        print(f"  Converting to PDF...")
-        final_image.save(output_pdf, 'PDF', resolution=dpi)
-        final_image.close()
-        
-        # Wait for file to be written
-        time.sleep(0.1)
-        
-        # Verify output
-        if not os.path.exists(output_pdf):
-            raise RuntimeError(f"Failed to create output PDF: {output_pdf}")
-        
-        output_size = os.path.getsize(output_pdf)
-        if output_size == 0:
-            raise RuntimeError(f"Output PDF is empty: {output_pdf}")
-        
-        print(f"  PDF created successfully: {output_size} bytes")
-        
-        # Clean up temp files
-        try:
-            if os.path.exists(temp_composite):
-                os.remove(temp_composite)
-        except Exception as e:
-            print(f"  Warning: Could not clean up temp file: {e}")
-        
-        return output_pdf
-        
+        with Image.open(image1) as img1_test:
+            if img1_test.size[0] == 0 or img1_test.size[1] == 0:
+                raise ValueError(f"Image 1 has invalid dimensions: {image1}")
+        with Image.open(image2) as img2_test:
+            if img2_test.size[0] == 0 or img2_test.size[1] == 0:
+                raise ValueError(f"Image 2 has invalid dimensions: {image2}")
     except Exception as e:
-        print(f"  Error in create_pdf_with_images: {e}")
-        # Clean up on error
-        try:
-            if os.path.exists(temp_composite):
-                os.remove(temp_composite)
-        except:
-            pass
-        raise
+        raise ValueError(f"Invalid image file(s): {e}")
+    
+    # Convert images to temporary PDFs
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    temp_pdf1 = os.path.join(TEMP_DIR, "temp_1.pdf")
+    temp_pdf2 = os.path.join(TEMP_DIR, "temp_2.pdf")
+    
+    # Clean up any existing temp files
+    for temp_file in [temp_pdf1, temp_pdf2]:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+    
+    png_to_pdf(image1, temp_pdf1)
+    png_to_pdf(image2, temp_pdf2)
+    
+    # Additional delay to ensure files are fully written
+    time.sleep(0.2)
+    
+    # Verify temp PDFs
+    if not os.path.exists(temp_pdf1) or os.path.getsize(temp_pdf1) == 0:
+        raise RuntimeError(f"Failed to create valid temp PDF for image 1")
+    if not os.path.exists(temp_pdf2) or os.path.getsize(temp_pdf2) == 0:
+        raise RuntimeError(f"Failed to create valid temp PDF for image 2")
+    
+    # Read template PDF
+    reader = PdfReader(input_pdf)
+    num_pages = len(reader.pages)
+    target = num_pages // 2
+    
+    # Read image PDFs
+    reader_img1 = PdfReader(temp_pdf1)
+    reader_img2 = PdfReader(temp_pdf2)
+    
+    # Get fresh copies of the image pages
+    img_page1 = reader_img1.pages[0]
+    img_page2 = reader_img2.pages[0]
+    
+    # Size and positioning
+    img_width = 500
+    img_height = 500
+    scale_factor = 1.027
+    common_x = 121
+    
+    # Top image position
+    tx1 = common_x
+    ty1 = 396
+    
+    # Bottom image position
+    tx2 = common_x
+    ty2 = 36
+    
+    # Calculate scale
+    target_scale = (img_width / 1500) * scale_factor
+    
+    # Apply transformations to image pages BEFORE merging
+    # Transformation matrix: [a, b, c, d, e, f] where a=d=scale, e=x, f=y
+    img_page1.add_transformation([target_scale, 0, 0, target_scale, tx1, ty1])
+    img_page2.add_transformation([target_scale, 0, 0, target_scale, tx2, ty2])
+    
+    # Wait to ensure transformations are applied
+    time.sleep(0.1)
+    
+    # Create writer
+    writer = PdfWriter()
+    
+    # Add pages
+    for i in range(num_pages):
+        page = reader.pages[i]
+        if i == target:
+            # Merge images onto this page
+            page.merge_page(img_page2)
+            time.sleep(0.05)
+            page.merge_page(img_page1)
+        writer.add_page(page)
+    
+    # Write output with explicit flush
+    with open(output_pdf, "wb") as out_file:
+        writer.write(out_file)
+        out_file.flush()
+        os.fsync(out_file.fileno())  # Force write to disk
+    
+    # Small delay to ensure file is written
+    time.sleep(0.1)
+    
+    # Verify output
+    if not os.path.exists(output_pdf):
+        raise RuntimeError(f"Failed to create output PDF: {output_pdf}")
+    
+    output_size = os.path.getsize(output_pdf)
+    if output_size == 0:
+        raise RuntimeError(f"Output PDF is empty: {output_pdf}")
+    
+    # Verify readability
+    try:
+        verification_reader = PdfReader(output_pdf)
+        if len(verification_reader.pages) == 0:
+            raise RuntimeError(f"Output PDF has no pages")
+    except Exception as e:
+        raise RuntimeError(f"Output PDF validation failed: {e}")
+    
+    # Clean up temp files
+    try:
+        os.remove(temp_pdf1)
+        os.remove(temp_pdf2)
+    except Exception as e:
+        print(f"Warning: Could not clean up temp files: {e}")
+    
+    return output_pdf
 
 
 # ============================================================================

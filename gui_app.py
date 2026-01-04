@@ -1799,7 +1799,7 @@ Stitch for Sophia"""
             
             model_type = "reasoning" if use_reasoning else "quick"
             self.root.after(0, lambda: self.status_text.set(f"AI is parsing your order ({model_type})..."))
-            self.root.after(0, lambda: self.log(f"Calling Grok AI ({model_type} model) to parse order text...", "info"))
+            self.root.after(0, lambda: self.log(f"Calling Grok AI ({model_type} model) with {len(self.image_list)} available images...", "info"))
             
             # Call Grok API with reasoning parameter
             result = self.call_grok_api(self.image_list, raw_text, use_reasoning)
@@ -1847,40 +1847,43 @@ Stitch for Sophia"""
             
     def call_grok_api(self, image_list, order_text, use_reasoning=True):
         """Call Grok API to parse order text"""
-        images_str = ', '.join(image_list)
+        # Format the complete list of available images
+        # Send ALL images so AI can choose from exact matches
+        images_formatted = '\n'.join(f"  - {img}" for img in image_list)
         
         # Choose model based on use_reasoning
         model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
         
         prompt = f"""You are parsing Disney-themed magnet orders. Convert the order text into a simple character-name format.
 
-Available images: {images_str[:500]}{'...' if len(images_str) > 500 else ''}
+IMPORTANT: You MUST select from this EXACT list of available images. Do NOT guess or make up names.
 
-Order text:
+COMPLETE LIST OF AVAILABLE IMAGES ({len(image_list)} total):
+{images_formatted}
+
+Order text to parse:
 {order_text}
 
-Instructions:
-1. Find all personalization names in the order
-2. Match each name to a character based on context
-3. Determine the theme/variant (captain, pumpkin, witch, halloween, pirate, christmas, etc.)
-4. Match to available images using format: charactername-variant (e.g., mickey-captain, stitch-captain)
-5. If theme unclear, use "captain" (NOT normal)
-6. Only return matches you're confident about
+INSTRUCTIONS:
+1. Find all personalization names in the order text
+2. For each name, identify which Disney character is requested
+3. Match to an EXACT filename from the available images list above
+4. You MUST use filenames EXACTLY as shown (including .png extension)
+5. If a character/variant is not in the list, skip it
+6. If theme is unclear, prefer "-captain" variants over others
+7. Common patterns: charactername-captain, charactername-christmas, charactername-pirate, charactername-witch
 
-Return ONLY a Python dictionary, no extra text:
+OUTPUT FORMAT - Return ONLY a Python dictionary, no other text:
 {{
-  "PersonName1": "character-variant.png",
-  "PersonName2": "character-variant.png"
+  "PersonName1": "exact-filename.png",
+  "PersonName2": "exact-filename.png"
 }}
 
-Example input: "Captain Mickey for Johnny, Captain Stitch for Sarah"
-Example output: {{"Johnny": "mickey-captain.png", "Sarah": "stitch-captain.png"}}
+Example:
+Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah"
+Output: {{"Johnny": "mickey-captain.png", "Sarah": "elsa-christmas.png"}}
 
-Be smart about:
-- Typos (Micky -> mickey, Stitsh -> stitch)
-- Variations (Mike Wazowski -> mikewazowski, Buzz Lightyear -> buzzlightyear)
-- Character context from theme
-- Common Disney character names
+CRITICAL: Only use filenames that EXACTLY match the list above. Do not invent or guess names.
 
 Return the dictionary now:"""
         
@@ -1893,12 +1896,12 @@ Return the dictionary now:"""
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "max_tokens": 16000
+            "max_tokens": 2000  # Reduced since output is just a small dictionary
         }
         
         try:
-            self.root.after(0, lambda: self.log("Sending request to Grok AI...", "info"))
-            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=30)
+            self.root.after(0, lambda: self.log("Sending request to Grok AI with complete image list...", "info"))
+            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=60)  # Increased timeout for larger prompt
             response.raise_for_status()
             
             result = response.json()
