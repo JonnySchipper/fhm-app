@@ -6,6 +6,8 @@ Interactive interface for processing orders with real-time feedback
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import tkinter.font as tkfont
+import fitz
+
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
 except ImportError:
@@ -1696,7 +1698,6 @@ pluto-captain,Sophia"""
                 messagebox.showerror("Error", f"Failed to open PDF:\n{str(e)}")
         else:
             messagebox.showinfo("No Master PDF", "Master PDF not found. Process orders first.")
-    import fitz  # PyMuPDF — add this import at the top with the others
 
     def flatten_pdf_in_place(self, pdf_path, dpi=300):
         """Rasterize all pages of a PDF and overwrite it with a flattened version."""
