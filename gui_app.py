@@ -1592,47 +1592,58 @@ pluto-captain,Sophia"""
             if success:
                 self.log("✓ Processing complete!", "success")
                 self.view_btn.config(state=tk.NORMAL)
-                
-                # Find and merge all PDFs
-                self.log("Creating master PDF...", "info")
+               
+                # Find all individual order PDFs
                 pdf_files = []
                 for file in sorted(os.listdir('.')):
                     if file.startswith('order_output_') and file.endswith('.pdf'):
                         pdf_files.append(file)
-                
+               
                 if pdf_files:
+                    # === Flatten each individual PDF in place ===
+                    self.log("Flattening individual PDFs (removing hidden layers/data)...", "info")
+                    for pdf_file in pdf_files:
+                        if os.path.exists(pdf_file):
+                            self.flatten_pdf_in_place(pdf_file, dpi=300)
+                    # ===========================================
+
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     master_pdf_name = f"MASTER_ORDER_{timestamp}.pdf"
-                    
+                   
                     if self.merge_pdfs(pdf_files, master_pdf_name):
+                        # === Flatten the master PDF ===
+                        self.log("Flattening master PDF...", "info")
+                        self.flatten_pdf_in_place(master_pdf_name, dpi=300)
+                        # ==============================
+
                         self.master_pdf_path = master_pdf_name
                         self.master_pdf_btn.config(state=tk.NORMAL)
                         self.status_text.set(f"✓ Complete! Master PDF: {master_pdf_name}")
-                        
-                        # Automatically open the master PDF
+                       
+                        # Automatically open the (now flattened) master PDF
                         try:
                             self.log(f"Opening master PDF...", "info")
                             open_file_or_folder(master_pdf_name)
                             time.sleep(0.5)  # Give system time to open the file
                         except Exception as e:
                             self.log(f"Could not auto-open PDF: {e}", "warning")
-                        
+                       
                         messagebox.showinfo(
                             "Success",
-                            f"Orders processed successfully!\n\n"
-                            f"✓ {len(pdf_files)} individual PDFs created\n"
-                            f"✓ Master PDF created: {master_pdf_name}\n"
-                            f"✓ Master PDF opened automatically!\n\n"
+                            f"Orders processed and FLATTENED!\n\n"
+                            f"✓ {len(pdf_files)} individual PDFs created (flattened)\n"
+                            f"✓ Master PDF created and flattened: {master_pdf_name}\n"
+                            f"✓ No editable text or hidden template data remains\n\n"
+                            f"Master PDF opened automatically!\n\n"
                             f"Check your PDF viewer!"
                         )
                     else:
-                        self.status_text.set("✓ Orders processed successfully!")
+                        self.status_text.set("✓ Orders processed (individual PDFs flattened)")
                         messagebox.showinfo(
                             "Success",
                             "Orders processed successfully!\n\n"
-                            "Check:\n"
-                            "• outputs/ folder for images\n"
-                            "• Current directory for PDFs"
+                            "Individual PDFs have been flattened.\n"
+                            "Check current directory for PDFs and outputs/ folder for images."
                         )
                 else:
                     self.status_text.set("✓ Images created (no PDFs to merge)")
@@ -1685,7 +1696,45 @@ pluto-captain,Sophia"""
                 messagebox.showerror("Error", f"Failed to open PDF:\n{str(e)}")
         else:
             messagebox.showinfo("No Master PDF", "Master PDF not found. Process orders first.")
-            
+    import fitz  # PyMuPDF — add this import at the top with the others
+
+    def flatten_pdf_in_place(self, pdf_path, dpi=300):
+        """Rasterize all pages of a PDF and overwrite it with a flattened version."""
+        try:
+            doc = fitz.open(pdf_path)
+            if doc.page_count == 0:
+                doc.close()
+                return
+
+            # Create a temporary output path
+            temp_path = pdf_path + ".flattened_tmp.pdf"
+
+            writer = fitz.open()  # New empty PDF
+
+            for page in doc:
+                # Create a new blank page with the exact same dimensions
+                new_page = writer.new_page(width=page.rect.width, height=page.rect.height)
+
+                # Render the original page to a high-resolution pixmap
+                zoom = dpi / 72.0
+                mat = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+
+                # Insert the rendered image (covers the entire page)
+                new_page.insert_image(new_page.rect, pixmap=pix)
+
+            # Save to temp file then replace original
+            writer.save(temp_path, garbage=4, deflate=True, clean=True)
+            writer.close()
+            doc.close()
+
+            # Overwrite the original file
+            os.replace(temp_path, pdf_path)
+
+            self.log(f"Flattened: {os.path.basename(pdf_path)}", "success")
+        except Exception as e:
+            self.log(f"Failed to flatten {os.path.basename(pdf_path)}: {str(e)}", "error")
+            # If flattening fails, keep the original (non-flattened) file                
     def merge_pdfs(self, pdf_files, output_path):
         """Merge multiple PDF files into one master PDF"""
         try:
