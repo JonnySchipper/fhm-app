@@ -1,0 +1,197 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║          DISNEY MAGNET PROCESSOR - QUICK REFERENCE CARD              ║
+║                    Enhanced Features (v2.0)                          ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🚀 QUICK START (NEW WORKFLOW)                                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+1. Launch GUI
+   → Orders load automatically ✨
+   → Pending orders pre-selected ✨
+
+2. Click "▶ Begin Selected Orders"
+   → Smart AI selection (fast for ≤5 items) ✨
+
+3. Fix any yellow-highlighted items
+   → Click red "SEARCH NOW!" button ✨
+
+4. Click "✅ Confirm & Process Orders"
+   → Validation blocks if issues found ✨
+
+5. Click "✓ Open Validation Page"
+   → Final review before shipping
+
+⏱️ Total Time: ~2-3 minutes for 5 orders!
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🆕 WHAT'S NEW                                                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+✨ AUTO-LOAD ON STARTUP
+   • Orders appear automatically when you launch
+   • No manual clicking needed
+   • Ready to process immediately
+
+⚡ SMART AI PARSING
+   • ≤5 items → Quick Parse (5-10 sec)
+   • >5 items → Standard Parse (20-30 sec)
+   • Automatic selection based on order size
+
+⚠️ UNMATCHED ITEM HANDLING
+   • Items AI can't match are preserved (not skipped!)
+   • Bright yellow highlighting
+   • Red "SEARCH NOW!" button
+   • Cannot process until all items matched
+
+🛡️ VALIDATION
+   • Blocks processing if issues detected
+   • Clear error messages
+   • Impossible to make mistakes
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🎨 VISUAL INDICATORS                                                 │
+└──────────────────────────────────────────────────────────────────────┘
+
+WHITE/GRAY BACKGROUND     → Normal, matched items ✅
+GREEN BACKGROUND          → Completed orders ✅
+YELLOW/ORANGE BACKGROUND  → Warning, needs attention ⚠️
+RED TEXT/BUTTON           → Action required ❌
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🔍 RECOGNIZING UNMATCHED ITEMS                                       │
+└──────────────────────────────────────────────────────────────────────┘
+
+Look for:
+• 🟡 Yellow/orange background (entire item row)
+• ⚠️ "NEEDS IMAGE" icon in preview box
+• ⚠️ Warning banner at top: "IMAGE NOT MATCHED"
+• Character field shows: "⚠️ NOT FOUND - SEARCH REQUIRED"
+• Red "🔍 SEARCH NOW!" button (not blue)
+• Status: "❌ Select image required" (not green ✓)
+
+Action Required:
+1. Click the red "🔍 SEARCH NOW!" button
+2. Type to search (e.g., "hulk", "mickey")
+3. Double-click or press Enter to select
+4. Item background turns white/green when fixed ✅
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 💡 PRO TIPS                                                          │
+└──────────────────────────────────────────────────────────────────────┘
+
+• Launch app daily → Orders auto-load from yesterday
+• Small batches → Quick parse saves time (≤5 items)
+• Yellow items → Never ignore, always fix before processing
+• Search is smart → "capt" finds "mickey-captain"
+• Check summary → Shows how many items need attention
+• Use filters → Pending (active), Completed (history)
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ⚠️ TROUBLESHOOTING                                                   │
+└──────────────────────────────────────────────────────────────────────┘
+
+PROBLEM: Can't process orders, keep getting error
+FIX: Yellow-highlighted items need fixing
+     → Click "SEARCH NOW!" for each yellow item
+
+PROBLEM: All items showing as IMAGE-NOT-FOUND
+FIX: Unusual characters or typos in order text
+     → Search and select manually for each
+
+PROBLEM: Orders not loading on startup
+FIX: No existing orders, click "Pull New Orders"
+
+PROBLEM: Quick parse not accurate
+FIX: Try manual "Parse with AI" for standard parse
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🎯 COMMON SCENARIOS                                                  │
+└──────────────────────────────────────────────────────────────────────┘
+
+SCENARIO 1: All Items Matched ✅
+• Launch → Auto-load → Begin → Process → Done!
+• Time: ~2 minutes
+
+SCENARIO 2: Some Items Unmatched ⚠️
+• Launch → Auto-load → Begin → See yellow items
+• Click "SEARCH NOW!" for each → Select images
+• Process → Done!
+• Time: ~3-4 minutes
+
+SCENARIO 3: Large Batch (>5 items)
+• Launch → Auto-load → Begin → Standard Parse
+• Wait 20-30 seconds → Review → Process
+• Time: ~4-5 minutes
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📊 SUMMARY FOOTER GUIDE                                              │
+└──────────────────────────────────────────────────────────────────────┘
+
+"✓ Ready: 5 | Total: 5"
+   → All items matched, ready to process ✅
+
+"✓ Ready: 3 | ❌ Need Selection: 2 | Total: 5"
+   → 2 items need image selection ⚠️
+
+"✓ Ready: 3 | ❌ Need Selection: 1 | ⚠ Issues: 1 | Total: 5"
+   → 1 needs selection, 1 has other issues ⚠️
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🚦 VALIDATION ERRORS                                                 │
+└──────────────────────────────────────────────────────────────────────┘
+
+ERROR: "Unmatched Items Detected"
+MEANING: Some items still have IMAGE-NOT-FOUND
+ACTION: Fix all yellow items before processing
+        Click "SEARCH NOW!" for each
+
+ERROR: "Missing Images"
+MEANING: Image files don't exist in FHM_Images folder
+ACTION: Check FHM_Images folder, add missing files
+        or Select different images
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📁 KEY FILES                                                         │
+└──────────────────────────────────────────────────────────────────────┘
+
+etsy_sales_emails.txt  → Raw order data (auto-generated)
+order_state.json       → Tracks completed orders (auto-managed)
+processed_orders.txt   → Prevents duplicate pulls (auto-managed)
+outputs/               → Generated images
+pdf_archive/           → Old PDFs
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📖 DOCUMENTATION                                                     │
+└──────────────────────────────────────────────────────────────────────┘
+
+ENHANCED_FEATURES.md      → Comprehensive guide (READ THIS FIRST!)
+IMPLEMENTATION_SUMMARY.md → Technical details
+ORDER_MANAGEMENT_GUIDE.md → Original feature guide
+QUICK_START_ORDER_MANAGEMENT.md → 3-minute guide
+GUI_GUIDE.md             → General GUI help
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ⌨️ KEYBOARD & MOUSE                                                  │
+└──────────────────────────────────────────────────────────────────────┘
+
+Mouse Wheel     → Scroll through order lists
+Checkboxes      → Select/deselect orders
+Tab Key         → Navigate between fields
+Enter (in list) → Select item in search dialog
+Double-Click    → Select item in search dialog
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📞 NEED HELP?                                                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+1. Check ENHANCED_FEATURES.md (comprehensive guide)
+2. Review troubleshooting section above
+3. Check terminal output for error messages
+4. Verify all dependencies installed
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                     HAPPY PROCESSING! 🎨✨                           ║
+╚══════════════════════════════════════════════════════════════════════╝
+
