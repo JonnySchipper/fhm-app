@@ -123,18 +123,18 @@ class OrderProcessorGUI:
         title_label = tk.Label(
             title_frame,
             text="🎨 Disney Magnet Order Processor",
-            font=("Segoe UI", 20, "bold"),
+            font=("Segoe UI", 30, "bold"),
             bg=self.accent_color,
-            fg="white"
+            fg="black"
         )
         title_label.pack(pady=(15, 5))
         
         subtitle_label = tk.Label(
             title_frame,
             text="✨ AI-Powered • Just Paste & Process",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 15),
             bg=self.accent_color,
-            fg="#e0e0e0"
+            fg="black"
         )
         subtitle_label.pack(pady=(0, 10))
         
@@ -145,9 +145,9 @@ class OrderProcessorGUI:
         zoom_label = tk.Label(
             zoom_frame,
             text="Zoom:",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.accent_color,
-            fg="white"
+            fg="black"
         )
         zoom_label.pack(side=tk.LEFT, padx=(0, 5))
         
@@ -155,7 +155,7 @@ class OrderProcessorGUI:
             zoom_frame,
             text="−",
             command=self.zoom_out,
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 18, "bold"),
             bg="white",
             fg="black",
             relief=tk.FLAT,
@@ -167,9 +167,9 @@ class OrderProcessorGUI:
         self.zoom_display = tk.Label(
             zoom_frame,
             text="100%",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.accent_color,
-            fg="white",
+            fg="black",
             width=5
         )
         self.zoom_display.pack(side=tk.LEFT, padx=2)
@@ -178,7 +178,7 @@ class OrderProcessorGUI:
             zoom_frame,
             text="+",
             command=self.zoom_in,
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 18, "bold"),
             bg="white",
             fg="black",
             relief=tk.FLAT,
@@ -217,9 +217,9 @@ class OrderProcessorGUI:
         order_mgmt_frame = tk.LabelFrame(
             parent,
             text="📦 Order Management",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_color,
-            fg="#333"
+            fg="black"
         )
         order_mgmt_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
@@ -232,9 +232,9 @@ class OrderProcessorGUI:
             top_btn_frame,
             text="📥 Pull New Orders",
             command=self.pull_new_orders,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg="#28a745",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=8,
@@ -247,9 +247,9 @@ class OrderProcessorGUI:
             top_btn_frame,
             text="🔄 Refresh List",
             command=self.refresh_order_list,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#17a2b8",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=8,
@@ -264,7 +264,7 @@ class OrderProcessorGUI:
         tk.Label(
             filter_frame,
             text="Show:",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.bg_color
         ).pack(side=tk.LEFT, padx=(0, 5))
         
@@ -277,7 +277,8 @@ class OrderProcessorGUI:
             value="all",
             command=self.refresh_order_list,
             bg=self.bg_color,
-            font=("Segoe UI", 9)
+            fg="black",
+            font=("Segoe UI", 14)
         )
         filter_all_radio.pack(side=tk.LEFT, padx=2)
         
@@ -288,7 +289,8 @@ class OrderProcessorGUI:
             value="pending",
             command=self.refresh_order_list,
             bg=self.bg_color,
-            font=("Segoe UI", 9)
+            fg="black",
+            font=("Segoe UI", 14)
         )
         filter_pending_radio.pack(side=tk.LEFT, padx=2)
         
@@ -299,7 +301,8 @@ class OrderProcessorGUI:
             value="completed",
             command=self.refresh_order_list,
             bg=self.bg_color,
-            font=("Segoe UI", 9)
+            fg="black",
+            font=("Segoe UI", 14)
         )
         filter_completed_radio.pack(side=tk.LEFT, padx=2)
         
@@ -308,9 +311,9 @@ class OrderProcessorGUI:
         count_label = tk.Label(
             top_btn_frame,
             textvariable=self.order_list_count,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.bg_color,
-            fg="#666"
+            fg="black"
         )
         count_label.pack(side=tk.RIGHT)
         
@@ -342,12 +345,31 @@ class OrderProcessorGUI:
         
         canvas.bind('<Configure>', configure_canvas_width)
         
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (cross-platform) - bind locally to avoid errors
         def on_mousewheel(event):
-            if event.delta:
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if canvas.winfo_exists() and event.delta:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
         
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        def on_mousewheel_mac(event):
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
+        
+        # Store scroll callback for use in order widgets
+        if platform.system() == 'Darwin':  # macOS
+            self.orders_scroll_callback = on_mousewheel_mac
+        else:  # Windows/Linux
+            self.orders_scroll_callback = on_mousewheel
+        
+        # Bind for different platforms - use local binding
+        list_container.bind("<MouseWheel>", self.orders_scroll_callback)
+        canvas.bind("<MouseWheel>", self.orders_scroll_callback)
+        self.orders_list_frame.bind("<MouseWheel>", self.orders_scroll_callback)
         
         # Bottom button row
         bottom_btn_frame = tk.Frame(order_mgmt_frame, bg=self.bg_color)
@@ -358,9 +380,9 @@ class OrderProcessorGUI:
             bottom_btn_frame,
             text="✓ Select All",
             command=self.select_all_orders,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=5,
@@ -372,9 +394,9 @@ class OrderProcessorGUI:
             bottom_btn_frame,
             text="✗ Deselect All",
             command=self.deselect_all_orders,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=15,
             pady=5,
@@ -387,9 +409,9 @@ class OrderProcessorGUI:
             bottom_btn_frame,
             text="▶ Begin Selected Orders",
             command=self.begin_selected_orders,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg=self.success_color,
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=30,
             pady=8,
@@ -402,9 +424,9 @@ class OrderProcessorGUI:
             bottom_btn_frame,
             text="✓ Open Validation Page",
             command=self.open_validation_page,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg="#17a2b8",
-            fg="white",
+            fg="black",
             relief=tk.FLAT,
             padx=20,
             pady=8,
@@ -421,9 +443,9 @@ class OrderProcessorGUI:
         ai_frame = tk.LabelFrame(
             parent,
             text="🤖 AI Order Parser (Paste Raw Order Text)",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_color,
-            fg=self.ai_color
+            fg="black"
         )
         ai_frame.pack(fill=tk.X, pady=(0, 15))
         
@@ -434,18 +456,18 @@ class OrderProcessorGUI:
         info_label = tk.Label(
             info_frame,
             text="Paste raw order text from emails/messages and let AI parse it automatically!",
-            font=("Segoe UI", 9, "italic"),
+            font=("Segoe UI", 14, "italic"),
             bg=self.bg_color,
-            fg="#666"
+            fg="black"
         )
         info_label.pack(side=tk.LEFT)
         
         images_label = tk.Label(
             info_frame,
             textvariable=self.available_images,
-            font=("Segoe UI", 8),
+            font=("Segoe UI", 12),
             bg=self.bg_color,
-            fg=self.ai_color
+            fg="black"
         )
         images_label.pack(side=tk.RIGHT)
         
@@ -455,10 +477,10 @@ class OrderProcessorGUI:
         
         self.raw_text = scrolledtext.ScrolledText(
             raw_frame,
-            font=("Consolas", 9),
+            font=("Consolas", 14),
             height=6,
             bg="white",
-            fg="#333",
+            fg="black",
             wrap=tk.WORD,
             relief=tk.FLAT
         )
@@ -471,7 +493,7 @@ Order #12345 - Mickey Captain themed, names: Johnny, Sarah, Michael
 or
 Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)"""
         self.raw_text.insert(1.0, placeholder)
-        self.raw_text.config(fg="#999")
+        self.raw_text.config(fg="black")
         
         self.raw_text.bind("<FocusIn>", self.clear_raw_placeholder)
         self.raw_text.bind("<FocusOut>", self.restore_raw_placeholder)
@@ -484,7 +506,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             ai_btn_frame,
             text="✨ Parse with AI (Grok)",
             command=self.parse_with_ai,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg=self.ai_color,
             fg="black",
             relief=tk.FLAT,
@@ -499,7 +521,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             ai_btn_frame,
             text="⚡ Quick Parse",
             command=self.quick_parse_with_ai,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#17a2b8",
             fg="black",
             relief=tk.FLAT,
@@ -514,7 +536,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             ai_btn_frame,
             text="🗑️ Clear",
             command=self.clear_raw_text,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -529,7 +551,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             ai_btn_frame,
             text="📋 Load Example",
             command=self.load_raw_sample,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#f0ad4e",
             fg="black",
             relief=tk.FLAT,
@@ -544,9 +566,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         file_frame = tk.LabelFrame(
             parent,
             text="📝 Add Orders (Type or Paste Here)",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_color,
-            fg="#333"
+            fg="black"
         )
         file_frame.pack(fill=tk.X, pady=(0, 15))
         
@@ -554,9 +576,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         instructions = tk.Label(
             file_frame,
             text="Type one order per line:  character-name,PersonName  (or paste from Excel/CSV)",
-            font=("Segoe UI", 9, "italic"),
+            font=("Segoe UI", 14, "italic"),
             bg=self.bg_color,
-            fg="#666"
+            fg="black"
         )
         instructions.pack(pady=(5, 0), padx=10, anchor=tk.W)
         
@@ -566,10 +588,10 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         
         self.order_input = scrolledtext.ScrolledText(
             input_frame,
-            font=("Consolas", 10),
+            font=("Consolas", 15),
             height=8,
             bg="white",
-            fg="#333",
+            fg="black",
             wrap=tk.WORD,
             relief=tk.FLAT
         )
@@ -578,7 +600,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         # Placeholder text
         placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
         self.order_input.insert(1.0, placeholder)
-        self.order_input.config(fg="#999")
+        self.order_input.config(fg="black")
         
         # Bind events for placeholder
         self.order_input.bind("<FocusIn>", self.clear_placeholder)
@@ -594,7 +616,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="📁 Load from CSV",
             command=self.browse_file,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -609,7 +631,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="🗑️ Clear Input",
             command=self.clear_input,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -624,7 +646,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="📋 Paste Sample",
             command=self.load_sample,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#f0ad4e",
             fg="black",
             relief=tk.FLAT,
@@ -639,9 +661,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         preview_frame = tk.LabelFrame(
             parent,
             text="📋 Order Preview",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_color,
-            fg="#333"
+            fg="black"
         )
         preview_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
@@ -652,9 +674,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         count_label = tk.Label(
             top_frame,
             textvariable=self.orders_count,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.bg_color,
-            fg="#666"
+            fg="black"
         )
         count_label.pack(side=tk.LEFT)
         
@@ -662,7 +684,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             top_frame,
             text="👁️ Preview Orders",
             command=self.preview_orders,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.accent_color,
             fg="black",
             relief=tk.FLAT,
@@ -675,7 +697,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         # Scrolled text for preview
         self.preview_text = scrolledtext.ScrolledText(
             preview_frame,
-            font=("Consolas", 9),
+            font=("Consolas", 14),
             height=10,
             bg="#f8f9fa",
             relief=tk.FLAT,
@@ -688,9 +710,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         progress_frame = tk.LabelFrame(
             parent,
             text="⚙️ Processing",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_color,
-            fg="#333"
+            fg="black"
         )
         progress_frame.pack(fill=tk.X, pady=(0, 15))
         
@@ -707,10 +729,10 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         # Log output
         self.log_text = scrolledtext.ScrolledText(
             progress_frame,
-            font=("Consolas", 8),
+            font=("Consolas", 12),
             height=8,
             bg="#1e1e1e",
-            fg="#d4d4d4",
+            fg="black",
             relief=tk.FLAT
         )
         self.log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
@@ -725,7 +747,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="▶ Process Orders",
             command=self.process_orders,
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.success_color,
             fg="black",
             relief=tk.FLAT,
@@ -744,7 +766,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="📁 View Outputs",
             command=self.view_outputs,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -760,7 +782,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="📄 Open Master PDF",
             command=self.open_master_pdf,
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", 14, "bold"),
             bg="#17a2b8",
             fg="black",
             relief=tk.FLAT,
@@ -787,7 +809,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="🗑️ Clear",
             command=self.clear_all,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -802,7 +824,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="❓ Help",
             command=self.show_help,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#f0ad4e",
             fg="black",
             relief=tk.FLAT,
@@ -817,7 +839,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
             btn_frame,
             text="📦 View Archive",
             command=self.view_archive,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -836,9 +858,9 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         status_label = tk.Label(
             status_frame,
             textvariable=self.status_text,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg="#2c3e50",
-            fg="white",
+            fg="black",
             anchor=tk.W
         )
         status_label.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
@@ -847,14 +869,14 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         """Clear placeholder text on focus"""
         if self.order_input.get(1.0, tk.END).strip() in ["mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma", ""]:
             self.order_input.delete(1.0, tk.END)
-            self.order_input.config(fg="#333")
+            self.order_input.config(fg="black")
             
     def restore_placeholder(self, event):
         """Restore placeholder if empty"""
         if not self.order_input.get(1.0, tk.END).strip():
             placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
             self.order_input.insert(1.0, placeholder)
-            self.order_input.config(fg="#999")
+            self.order_input.config(fg="black")
             
     def update_count(self, event=None):
         """Update order count as user types"""
@@ -868,7 +890,7 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
     def clear_input(self):
         """Clear the input area"""
         self.order_input.delete(1.0, tk.END)
-        self.order_input.config(fg="#333")
+        self.order_input.config(fg="black")
         self.preview_text.delete(1.0, tk.END)
         self.orders_count.set("0 orders")
         self.status_text.set("Ready to process orders")
@@ -883,7 +905,7 @@ goofy-captain,Oliver
 pluto-captain,Sophia"""
         self.order_input.delete(1.0, tk.END)
         self.order_input.insert(1.0, sample)
-        self.order_input.config(fg="#333")
+        self.order_input.config(fg="black")
         self.update_count()
         self.status_text.set("Sample orders loaded")
         self.preview_orders()
@@ -915,7 +937,7 @@ pluto-captain,Sophia"""
             # Load into input area
             self.order_input.delete(1.0, tk.END)
             self.order_input.insert(1.0, '\n'.join(orders))
-            self.order_input.config(fg="#333")
+            self.order_input.config(fg="black")
             
             self.update_count()
             self.status_text.set(f"Loaded {len(orders)} orders from {os.path.basename(filepath)}")
@@ -1006,18 +1028,18 @@ pluto-captain,Sophia"""
         title_label = tk.Label(
             title_frame,
             text="✏️ Edit & Confirm Orders",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 24, "bold"),
             bg=self.accent_color,
-            fg="white"
+            fg="black"
         )
         title_label.pack(pady=(10, 0))
         
         subtitle_label = tk.Label(
             title_frame,
             text="Select images, edit names, then click 'Confirm & Process'",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.accent_color,
-            fg="#e0e0e0"
+            fg="black"
         )
         subtitle_label.pack(pady=(0, 10))
         
@@ -1041,35 +1063,51 @@ pluto-captain,Sophia"""
         
         canvas.bind('<Configure>', configure_canvas_width)
         
-        # Enable mouse wheel scrolling (cross-platform)
+        # Enable mouse wheel scrolling (cross-platform) - with safety checks
         def on_mousewheel(event):
-            # Windows and Linux
-            if event.delta:
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if canvas.winfo_exists() and event.delta:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
         
         def on_mac_mousewheel(event):
-            # Mac uses different delta values
-            canvas.yview_scroll(-1 * event.delta, "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(-1 * event.delta, "units")
+            except:
+                pass
         
         def on_button_4(event):
-            # X11 scroll up (Linux, some Mac configs)
-            canvas.yview_scroll(-1, "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(-1, "units")
+            except:
+                pass
         
         def on_button_5(event):
-            # X11 scroll down (Linux, some Mac configs)
-            canvas.yview_scroll(1, "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(1, "units")
+            except:
+                pass
         
-        # Bind mouse wheel events based on platform
+        # Bind mouse wheel events based on platform - local bindings only
         system = platform.system()
         if system == 'Darwin':  # macOS
-            canvas.bind_all("<MouseWheel>", on_mac_mousewheel)
-            canvas.bind_all("<Button-4>", on_button_4)
-            canvas.bind_all("<Button-5>", on_button_5)
+            preview_scroll_callback = on_mac_mousewheel
+            canvas.bind("<MouseWheel>", on_mac_mousewheel)
+            scrollable_frame.bind("<MouseWheel>", on_mac_mousewheel)
+            canvas.bind("<Button-4>", on_button_4)
+            canvas.bind("<Button-5>", on_button_5)
         elif system == 'Linux':
-            canvas.bind_all("<Button-4>", on_button_4)
-            canvas.bind_all("<Button-5>", on_button_5)
+            preview_scroll_callback = on_mousewheel
+            canvas.bind("<Button-4>", on_button_4)
+            canvas.bind("<Button-5>", on_button_5)
         else:  # Windows
-            canvas.bind_all("<MouseWheel>", on_mousewheel)
+            preview_scroll_callback = on_mousewheel
+            canvas.bind("<MouseWheel>", on_mousewheel)
+            scrollable_frame.bind("<MouseWheel>", on_mousewheel)
         
         # Store order data (will be updated as user edits)
         order_data = []
@@ -1081,18 +1119,31 @@ pluto-captain,Sophia"""
             idx = len(order_data)
             order_data.append({'character': character, 'name': name})
             
-            # Check if this is an unmatched item
-            is_unmatched = character.upper() in ['IMAGE-NOT-FOUND', 'N/A', 'NOT-FOUND', 'UNKNOWN']
+            # Check if this is an unmatched item and extract original item description
+            original_item_desc = ""
+            is_unmatched = False
+            if '[' in character and ']' in character:
+                # Extract original item from "IMAGE-NOT-FOUND [Original Item]" format
+                start = character.find('[')
+                end = character.find(']')
+                if start != -1 and end != -1:
+                    original_item_desc = character[start+1:end]
+                    character_base = character[:start].strip()
+                    is_unmatched = character_base.upper() in ['IMAGE-NOT-FOUND', 'N/A', 'NOT-FOUND', 'UNKNOWN']
+            else:
+                is_unmatched = character.upper() in ['IMAGE-NOT-FOUND', 'N/A', 'NOT-FOUND', 'UNKNOWN']
             
             # Create frame for this order - highlight unmatched items
             frame_bg = "#fff3cd" if is_unmatched else "white"  # Yellow warning background
             order_frame = tk.Frame(scrollable_frame, bg=frame_bg, relief=tk.RIDGE, bd=2)
             order_frame.pack(fill=tk.X, padx=10, pady=8)
+            order_frame.bind("<MouseWheel>", preview_scroll_callback)
             
             # Image preview (left side) - fixed size container
             image_container = tk.Frame(order_frame, bg=frame_bg, width=100, height=100)
             image_container.pack(side=tk.LEFT, padx=10, pady=10)
             image_container.pack_propagate(False)  # Prevent resizing
+            image_container.bind("<MouseWheel>", preview_scroll_callback)
             
             # Load initial image
             image_filename = f"{character}.png" if not is_unmatched else ""
@@ -1116,45 +1167,62 @@ pluto-captain,Sophia"""
                     self._preview_images = []
                 self._preview_images.append(photo)
             elif is_unmatched:
-                img_label.config(text="⚠️\nNEEDS\nIMAGE", font=("Segoe UI", 9, "bold"), fg="#d9534f")
+                img_label.config(text="⚠️\nNEEDS\nIMAGE", font=("Segoe UI", 14, "bold"), fg="black")
             else:
-                img_label.config(text="No\nImage", font=("Segoe UI", 10), fg="#999")
+                img_label.config(text="No\nImage", font=("Segoe UI", 15), fg="black")
             img_label.pack(fill=tk.BOTH, expand=True)
+            img_label.bind("<MouseWheel>", preview_scroll_callback)
             
             # Edit controls (right side)
             edit_frame = tk.Frame(order_frame, bg=frame_bg)
             edit_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=10)
+            edit_frame.bind("<MouseWheel>", preview_scroll_callback)
             
             # Warning label for unmatched items (at top)
             if is_unmatched:
+                warning_text = "⚠️ IMAGE NOT MATCHED - Click 'Search' to select correct image"
+                if original_item_desc:
+                    warning_text += f"\n📝 Original Order: {original_item_desc}"
+                
                 warning_label = tk.Label(
                     edit_frame,
-                    text="⚠️ IMAGE NOT MATCHED - Click 'Search' to select correct image",
-                    font=("Segoe UI", 9, "bold"),
+                    text=warning_text,
+                    font=("Segoe UI", 12, "bold"),
                     bg="#ffc107",
-                    fg="#d9534f",
+                    fg="black",
                     relief=tk.RAISED,
                     bd=1,
                     padx=8,
-                    pady=4
+                    pady=6,
+                    justify=tk.LEFT
                 )
                 warning_label.pack(fill=tk.X, pady=(0, 8))
+                warning_label.bind("<MouseWheel>", preview_scroll_callback)
             
             # Row 1: Character selection
             char_row = tk.Frame(edit_frame, bg=frame_bg)
             char_row.pack(fill=tk.X, pady=(0, 5))
+            char_row.bind("<MouseWheel>", preview_scroll_callback)
             
-            tk.Label(
+            char_label_title = tk.Label(
                 char_row,
                 text="Character:",
-                font=("Segoe UI", 9, "bold"),
+                font=("Segoe UI", 14, "bold"),
                 bg=frame_bg,
                 width=10,
                 anchor=tk.W
-            ).pack(side=tk.LEFT)
+            )
+            char_label_title.pack(side=tk.LEFT)
+            char_label_title.bind("<MouseWheel>", preview_scroll_callback)
             
             # Character text display (no dropdown)
-            char_var = tk.StringVar(value=character if not is_unmatched else "⚠️ NOT FOUND - SEARCH REQUIRED")
+            if is_unmatched:
+                char_display = f"⚠️ NOT FOUND - SEARCH REQUIRED"
+                if original_item_desc:
+                    char_display += f" (Was: {original_item_desc})"
+            else:
+                char_display = character
+            char_var = tk.StringVar(value=char_display)
             
             char_label_bg = "#fff" if not is_unmatched else "#ffc107"
             char_label_fg = "black" if not is_unmatched else "#d9534f"
@@ -1165,7 +1233,7 @@ pluto-captain,Sophia"""
                 textvariable=char_var,
                 font=char_label_font,
                 bg=char_label_bg,
-                fg=char_label_fg,
+                fg="black",
                 anchor=tk.W,
                 relief=tk.SUNKEN,
                 bd=1,
@@ -1173,6 +1241,7 @@ pluto-captain,Sophia"""
                 pady=3
             )
             char_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+            char_label.bind("<MouseWheel>", preview_scroll_callback)
             
             # Search button - more prominent for unmatched items
             def make_search_handler(char_v):
@@ -1188,40 +1257,46 @@ pluto-captain,Sophia"""
                 command=make_search_handler(char_var),
                 font=search_btn_font,
                 bg=search_btn_bg,
-                fg="white",
+                fg="black",
                 relief=tk.FLAT,
                 padx=12,
                 pady=5,
                 cursor="hand2"
             )
             search_btn.pack(side=tk.LEFT)
+            search_btn.bind("<MouseWheel>", preview_scroll_callback)
             
             # Row 2: Name input
             name_row = tk.Frame(edit_frame, bg=frame_bg)
             name_row.pack(fill=tk.X, pady=(0, 5))
+            name_row.bind("<MouseWheel>", preview_scroll_callback)
             
-            tk.Label(
+            name_label_title = tk.Label(
                 name_row,
                 text="Name:",
-                font=("Segoe UI", 9, "bold"),
+                font=("Segoe UI", 14, "bold"),
                 bg=frame_bg,
                 width=10,
                 anchor=tk.W
-            ).pack(side=tk.LEFT)
+            )
+            name_label_title.pack(side=tk.LEFT)
+            name_label_title.bind("<MouseWheel>", preview_scroll_callback)
             
             name_var = tk.StringVar(value=name)
             name_entry = tk.Entry(
                 name_row,
                 textvariable=name_var,
-                font=("Segoe UI", 10),
+                font=("Segoe UI", 15),
                 bg="#f8f9fa",
                 fg="black"
             )
             name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            name_entry.bind("<MouseWheel>", preview_scroll_callback)
             
             # Row 3: Status and actions
             action_row = tk.Frame(edit_frame, bg=frame_bg)
             action_row.pack(fill=tk.X, pady=(5, 0))
+            action_row.bind("<MouseWheel>", preview_scroll_callback)
             
             # Determine status based on whether it's matched and image exists
             if is_unmatched:
@@ -1237,11 +1312,12 @@ pluto-captain,Sophia"""
             status_label = tk.Label(
                 action_row,
                 text=status_text,
-                font=("Segoe UI", 8),
+                font=("Segoe UI", 12),
                 bg=frame_bg,
-                fg=status_color
+                fg="black"
             )
             status_label.pack(side=tk.LEFT)
+            status_label.bind("<MouseWheel>", preview_scroll_callback)
             
             # Delete button
             def make_delete_handler(idx):
@@ -1251,14 +1327,15 @@ pluto-captain,Sophia"""
                 action_row,
                 text="🗑️ Delete",
                 command=make_delete_handler(idx),
-                font=("Segoe UI", 8),
+                font=("Segoe UI", 12),
                 bg="#d9534f",
-                fg="white",
+                fg="black",
                 relief=tk.FLAT,
                 padx=8,
                 pady=2,
                 cursor="hand2"
             )
+            delete_btn.bind("<MouseWheel>", preview_scroll_callback)
             delete_btn.pack(side=tk.RIGHT, padx=(5, 0))
             
             # Function to update image when character changes
@@ -1282,15 +1359,15 @@ pluto-captain,Sophia"""
                             new_photo = ImageTk.PhotoImage(img)
                             img_lbl.config(image=new_photo, text="", bg="#f0f0f0")
                             self._preview_images.append(new_photo)
-                            status_lbl.config(text="✓ Ready", fg="#5cb85c")
+                            status_lbl.config(text="✓ Ready", fg="black")
                             # Update character label to show the actual character name (not warning)
-                            char_lbl.config(bg="#f8f9fa", fg="black", font=("Consolas", 10))
+                            char_lbl.config(bg="#f8f9fa", fg="black", font=("Consolas", 15))
                         except:
                             img_lbl.config(image="", text="Error\nLoading", bg="#fff0f0")
-                            status_lbl.config(text="❌ Error", fg="#d9534f")
+                            status_lbl.config(text="❌ Error", fg="black")
                     else:
                         img_lbl.config(image="", text="No\nImage", bg="#f0f0f0")
-                        status_lbl.config(text="⚠ Not found", fg="#f0ad4e")
+                        status_lbl.config(text="⚠ Not found", fg="black")
                 return update_image
             
             update_handler = make_update_handler(idx, img_label, char_var, name_var, status_label, char_label)
@@ -1323,7 +1400,7 @@ pluto-captain,Sophia"""
             tk.Label(
                 search_window,
                 text="🔍 Search Characters",
-                font=("Segoe UI", 14, "bold"),
+                font=("Segoe UI", 21, "bold"),
                 bg="white"
             ).pack(pady=10)
             
@@ -1334,7 +1411,7 @@ pluto-captain,Sophia"""
             tk.Label(
                 search_frame,
                 text="Type to filter:",
-                font=("Segoe UI", 11),
+                font=("Segoe UI", 16),
                 bg="white"
             ).pack(anchor=tk.W, pady=(0, 5))
             
@@ -1342,7 +1419,7 @@ pluto-captain,Sophia"""
             search_entry = tk.Entry(
                 search_frame,
                 textvariable=search_var,
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 18),
                 bg="white",
                 fg="black",
                 insertbackground="black"
@@ -1354,9 +1431,9 @@ pluto-captain,Sophia"""
             count_label = tk.Label(
                 search_window,
                 text=f"{len(available_images)} characters available",
-                font=("Segoe UI", 9),
+                font=("Segoe UI", 14),
                 bg="white",
-                fg="#666"
+                fg="black"
             )
             count_label.pack(pady=(0, 5))
             
@@ -1369,14 +1446,14 @@ pluto-captain,Sophia"""
             
             listbox = tk.Listbox(
                 list_frame,
-                font=("Consolas", 11),
+                font=("Consolas", 16),
                 yscrollcommand=scrollbar.set,
                 selectmode=tk.SINGLE,
                 activestyle='dotbox',
                 bg="white",
                 fg="black",
                 selectbackground=self.accent_color,
-                selectforeground="white",
+                selectforeground="black",
                 relief=tk.SOLID,
                 bd=1
             )
@@ -1476,9 +1553,9 @@ pluto-captain,Sophia"""
                 btn_frame,
                 text="✓ Select Character",
                 command=on_select,
-                font=("Segoe UI", 11, "bold"),
+                font=("Segoe UI", 16, "bold"),
                 bg=self.success_color,
-                fg="white",
+                fg="black",
                 relief=tk.FLAT,
                 cursor="hand2",
                 padx=20,
@@ -1491,9 +1568,9 @@ pluto-captain,Sophia"""
                 btn_frame,
                 text="✕ Cancel",
                 command=search_window.destroy,
-                font=("Segoe UI", 10),
+                font=("Segoe UI", 15),
                 bg="#6c757d",
-                fg="white",
+                fg="black",
                 relief=tk.FLAT,
                 cursor="hand2",
                 padx=20,
@@ -1505,9 +1582,9 @@ pluto-captain,Sophia"""
             tk.Label(
                 search_window,
                 text="💡 Tip: Type to filter • Double-click or press Enter to select",
-                font=("Segoe UI", 8, "italic"),
+                font=("Segoe UI", 12, "italic"),
                 bg="white",
-                fg="#999"
+                fg="black"
             ).pack(pady=(0, 10))
         
         # Delete order function
@@ -1555,7 +1632,7 @@ pluto-captain,Sophia"""
             add_order_frame,
             text="➕ Add New Order",
             command=add_new_order,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg="#28a745",
             fg="black",
             relief=tk.FLAT,
@@ -1573,9 +1650,9 @@ pluto-captain,Sophia"""
         summary_label = tk.Label(
             bottom_frame,
             text="",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg="#f0f0f0",
-            fg="#333"
+            fg="black"
         )
         summary_label.pack(pady=10)
         
@@ -1649,7 +1726,7 @@ pluto-captain,Sophia"""
             orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
             self.order_input.delete(1.0, tk.END)
             self.order_input.insert(1.0, orders_text)
-            self.order_input.config(fg="#333")
+            self.order_input.config(fg="black")
             self.update_count()
             
             # Close preview and start processing
@@ -1660,7 +1737,7 @@ pluto-captain,Sophia"""
             button_frame,
             text="✅ Confirm & Process Orders",
             command=confirm_and_process,
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 16, "bold"),
             bg=self.success_color,
             fg="black",
             relief=tk.FLAT,
@@ -1680,7 +1757,7 @@ pluto-captain,Sophia"""
             orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
             self.order_input.delete(1.0, tk.END)
             self.order_input.insert(1.0, orders_text)
-            self.order_input.config(fg="#333")
+            self.order_input.config(fg="black")
             self.update_count()
             
             messagebox.showinfo("Updated", "Orders updated in the main window!")
@@ -1690,7 +1767,7 @@ pluto-captain,Sophia"""
             button_frame,
             text="💾 Save Changes",
             command=update_only,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 15),
             bg="#17a2b8",
             fg="black",
             relief=tk.FLAT,
@@ -1709,7 +1786,7 @@ pluto-captain,Sophia"""
             button_frame,
             text="❌ Cancel",
             command=cancel,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 15),
             bg="#6c757d",
             fg="black",
             relief=tk.FLAT,
@@ -2083,7 +2160,7 @@ pluto-captain,Sophia"""
         self.order_input.delete(1.0, tk.END)
         placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
         self.order_input.insert(1.0, placeholder)
-        self.order_input.config(fg="#999")
+        self.order_input.config(fg="black")
         self.preview_text.delete(1.0, tk.END)
         self.log_text.delete(1.0, tk.END)
         self.orders_count.set("0 orders")
@@ -2118,7 +2195,7 @@ pluto-captain,Sophia"""
         current = self.raw_text.get(1.0, tk.END).strip()
         if "Paste order details here" in current:
             self.raw_text.delete(1.0, tk.END)
-            self.raw_text.config(fg="#333")
+            self.raw_text.config(fg="black")
             
     def restore_raw_placeholder(self, event):
         """Restore raw text placeholder if empty"""
@@ -2129,12 +2206,12 @@ Order #12345 - Mickey Captain themed, names: Johnny, Sarah, Michael
 or
 Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)"""
             self.raw_text.insert(1.0, placeholder)
-            self.raw_text.config(fg="#999")
+            self.raw_text.config(fg="black")
             
     def clear_raw_text(self):
         """Clear raw text area"""
         self.raw_text.delete(1.0, tk.END)
-        self.raw_text.config(fg="#333")
+        self.raw_text.config(fg="black")
         
     def load_raw_sample(self):
         """Load sample raw order text"""
@@ -2155,7 +2232,7 @@ Pluto for Oliver
 Stitch for Sophia"""
         self.raw_text.delete(1.0, tk.END)
         self.raw_text.insert(1.0, sample)
-        self.raw_text.config(fg="#333")
+        self.raw_text.config(fg="black")
         self.status_text.set("Sample order loaded - click 'Parse with AI' to process")
         
     def parse_with_ai(self):
@@ -2257,10 +2334,15 @@ Stitch for Sophia"""
                     if isinstance(item, dict) and 'name' in item and 'image' in item:
                         name = item['name']
                         image_file = item['image']
+                        original_item = item.get('item', '')  # Get original item description if available
                         
                         # Check for N/A or unmatched items
                         if image_file.lower() in ['n/a', 'n/a.png', 'unknown', 'unknown.png', 'not_found', 'not_found.png']:
-                            orders.append(f"IMAGE-NOT-FOUND,{name}")
+                            # Include original item info for unmatched items
+                            if original_item:
+                                orders.append(f"IMAGE-NOT-FOUND [{original_item}],{name}")
+                            else:
+                                orders.append(f"IMAGE-NOT-FOUND,{name}")
                             unmatched_count += 1
                         else:
                             # Remove .png extension
@@ -2287,7 +2369,7 @@ Stitch for Sophia"""
             orders_text = '\n'.join(orders)
             self.root.after(0, lambda: self.order_input.delete(1.0, tk.END))
             self.root.after(0, lambda: self.order_input.insert(1.0, orders_text))
-            self.root.after(0, lambda: self.order_input.config(fg="#333"))
+            self.root.after(0, lambda: self.order_input.config(fg="black"))
             self.root.after(0, lambda: self.update_count())
             self.root.after(0, lambda: self.preview_orders())
             
@@ -2352,17 +2434,19 @@ INSTRUCTIONS:
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
-  {{"name": "PersonName1", "image": "exact-filename.png"}},
-  {{"name": "PersonName2", "image": "exact-filename.png"}},
-  {{"name": "PersonName3", "image": "N/A.png"}}
+  {{"name": "PersonName1", "image": "exact-filename.png", "item": "original item description"}},
+  {{"name": "PersonName2", "image": "exact-filename.png", "item": "original item description"}},
+  {{"name": "PersonName3", "image": "N/A.png", "item": "original item description"}}
 ]
 
+The "item" field should contain the original item/character description from the order text.
+
 Example with unmatched item:
-Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah, SuperRareCharacter for Mike"
+Input: "Item: Captain Mickey\nPersonalization: Johnny\nItem: Christmas Elsa\nPersonalization: Sarah\nItem: SuperRareCharacter\nPersonalization: Mike"
 Output: [
-  {{"name": "Johnny", "image": "mickey-captain.png"}},
-  {{"name": "Sarah", "image": "elsa-christmas.png"}},
-  {{"name": "Mike", "image": "N/A.png"}}
+  {{"name": "Johnny", "image": "mickey-captain.png", "item": "Captain Mickey"}},
+  {{"name": "Sarah", "image": "elsa-christmas.png", "item": "Christmas Elsa"}},
+  {{"name": "Mike", "image": "N/A.png", "item": "SuperRareCharacter"}}
 ]
 
 CRITICAL: 
@@ -2558,11 +2642,13 @@ Return the list now:"""
             empty_label = tk.Label(
                 self.orders_list_frame,
                 text="No orders found. Click 'Pull New Orders' to fetch from email.",
-                font=("Segoe UI", 10, "italic"),
+                font=("Segoe UI", 15, "italic"),
                 bg="white",
-                fg="#999"
+                fg="black"
             )
             empty_label.pack(pady=50)
+            if hasattr(self, 'orders_scroll_callback'):
+                empty_label.bind("<MouseWheel>", self.orders_scroll_callback)
             return
         
         # Create order widgets
@@ -2587,9 +2673,17 @@ Return the list now:"""
         )
         order_frame.pack(fill=tk.X, padx=5, pady=3)
         
+        # Bind scroll to this frame
+        if hasattr(self, 'orders_scroll_callback'):
+            order_frame.bind("<MouseWheel>", self.orders_scroll_callback)
+        
         # Checkbox and order header
         header_frame = tk.Frame(order_frame, bg=order_frame['bg'])
         header_frame.pack(fill=tk.X, padx=10, pady=8)
+        
+        # Bind scroll to header frame
+        if hasattr(self, 'orders_scroll_callback'):
+            header_frame.bind("<MouseWheel>", self.orders_scroll_callback)
         
         # Checkbox
         checkbox_var = tk.BooleanVar(value=False)
@@ -2600,6 +2694,8 @@ Return the list now:"""
             command=lambda o=order, v=checkbox_var: self.on_order_checkbox_changed(o, v)
         )
         checkbox.pack(side=tk.LEFT, padx=(0, 10))
+        if hasattr(self, 'orders_scroll_callback'):
+            checkbox.bind("<MouseWheel>", self.orders_scroll_callback)
         
         self.order_checkboxes[order_num] = {
             'var': checkbox_var,
@@ -2614,20 +2710,24 @@ Return the list now:"""
         order_label = tk.Label(
             header_frame,
             text=f"Order #{order_num}",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg=order_frame['bg'],
-            fg="#333"
+            fg="black"
         )
         order_label.pack(side=tk.LEFT)
+        if hasattr(self, 'orders_scroll_callback'):
+            order_label.bind("<MouseWheel>", self.orders_scroll_callback)
         
         status_label = tk.Label(
             header_frame,
             text=status_text,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=order_frame['bg'],
-            fg=status_color
+            fg="black"
         )
         status_label.pack(side=tk.LEFT, padx=(10, 0))
+        if hasattr(self, 'orders_scroll_callback'):
+            status_label.bind("<MouseWheel>", self.orders_scroll_callback)
         
         # Customer info
         customer_info = f"{order['name']}"
@@ -2637,37 +2737,45 @@ Return the list now:"""
         customer_label = tk.Label(
             header_frame,
             text=customer_info,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=order_frame['bg'],
-            fg="#666"
+            fg="black"
         )
         customer_label.pack(side=tk.LEFT, padx=(20, 0))
+        if hasattr(self, 'orders_scroll_callback'):
+            customer_label.bind("<MouseWheel>", self.orders_scroll_callback)
         
         # Item count
         item_count_label = tk.Label(
             header_frame,
             text=f"({len(order['items'])} item{'s' if len(order['items']) != 1 else ''})",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=order_frame['bg'],
-            fg="#999"
+            fg="black"
         )
         item_count_label.pack(side=tk.RIGHT)
+        if hasattr(self, 'orders_scroll_callback'):
+            item_count_label.bind("<MouseWheel>", self.orders_scroll_callback)
         
         # Items details (collapsible)
         items_frame = tk.Frame(order_frame, bg="white")
         items_frame.pack(fill=tk.X, padx=20, pady=(0, 8))
+        if hasattr(self, 'orders_scroll_callback'):
+            items_frame.bind("<MouseWheel>", self.orders_scroll_callback)
         
         for item_data in order['items']:
             item_text = item_data.get('personalization', '(No personalization)')
             item_label = tk.Label(
                 items_frame,
                 text=f"  • {item_text}",
-                font=("Segoe UI", 9),
+                font=("Segoe UI", 14),
                 bg="white",
-                fg="#333",
+                fg="black",
                 anchor=tk.W
             )
             item_label.pack(fill=tk.X, pady=2)
+            if hasattr(self, 'orders_scroll_callback'):
+                item_label.bind("<MouseWheel>", self.orders_scroll_callback)
         
         self.order_widgets[order_num] = {
             'frame': order_frame,
@@ -2708,6 +2816,12 @@ Return the list now:"""
     
     def begin_selected_orders(self):
         """Begin processing selected orders - send to AI input field"""
+        # Rebuild selected_orders from checkbox states to ensure accuracy
+        self.selected_orders.clear()
+        for order_num, checkbox_data in self.order_checkboxes.items():
+            if checkbox_data['var'].get():  # If checkbox is checked
+                self.selected_orders.append(checkbox_data['order'])
+        
         if not self.selected_orders:
             messagebox.showwarning("No Selection", "Please select at least one order to process.")
             return
@@ -2716,20 +2830,24 @@ Return the list now:"""
             messagebox.showinfo("Processing", "Already processing. Please wait.")
             return
         
+        # Log which orders are being processed
+        order_nums = [o['order_number'] for o in self.selected_orders]
+        self.log(f"Processing selected orders: {', '.join(str(n) for n in order_nums)}", "info")
+        
         # Extract order text for AI processing
         order_text = order_state.extract_order_text_for_ai(self.selected_orders)
         
         # Fill the AI raw text input
         self.raw_text.delete(1.0, tk.END)
         self.raw_text.insert(1.0, order_text)
-        self.raw_text.config(fg="#333")
+        self.raw_text.config(fg="black")
         
         # Count items to determine parsing strategy
         num_orders = len(self.selected_orders)
         num_items = sum(len(o['items']) for o in self.selected_orders)
         
         # Smart AI selection: Quick parse for small batches, regular for larger
-        use_quick_parse = num_items <= 5
+        use_quick_parse = num_items <= 4
         parse_method = "Quick Parse (faster)" if use_quick_parse else "Standard Parse (more thorough)"
         
         result = messagebox.askyesno(
@@ -2789,32 +2907,33 @@ Return the list now:"""
         if not os.path.exists(outputs_dir):
             return []
         
-        # Get list of generated images
-        image_files = sorted([f for f in os.listdir(outputs_dir) if f.endswith('.png')])
+        # Get list of generated images sorted by number
+        image_files = sorted([f for f in os.listdir(outputs_dir) if f.endswith('.png') and f[0].isdigit()],
+                            key=lambda x: int(x.split('.')[0]))
+        
+        # Track cumulative image index across all orders
+        image_index = 0
         
         for order in completed_orders:
             order_images = []
+            num_items = len(order['items'])
             
-            # Try to find images for this order
-            # Images are numbered 1.png, 2.png, etc. based on processing order
-            # We'll match based on the number of items
-            for item in order['items']:
-                # For now, just collect images that exist
-                # In a more sophisticated version, we'd track which image corresponds to which order
-                pass
+            # Assign the next N images to this order (where N = number of items)
+            for i in range(num_items):
+                if image_index < len(image_files):
+                    img_path = os.path.join(outputs_dir, image_files[image_index])
+                    order_images.append(img_path)
+                    image_index += 1
             
-            # Add all available images for now (we'll refine this)
+            # Create order data with matched images
             order_data = {
                 'order_number': order['order_number'],
                 'name': order['name'],
                 'address': f"{order['city']}, {order['state']}",
                 'items': order['items'],
-                'images': []
+                'images': order_images  # Now contains the specific images for this order
             }
             
-            # For the validation page, we'll show all images
-            # This is a simplified version - a more complete version would track
-            # which specific images belong to which order
             validation_data.append(order_data)
         
         return validation_data
@@ -2845,18 +2964,18 @@ Return the list now:"""
         title_label = tk.Label(
             title_frame,
             text="✓ Order Validation - Review Before Shipping",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 24, "bold"),
             bg=self.accent_color,
-            fg="white"
+            fg="black"
         )
         title_label.pack(pady=(10, 0))
         
         subtitle_label = tk.Label(
             title_frame,
             text="Verify order details and images for each envelope",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 14),
             bg=self.accent_color,
-            fg="#e0e0e0"
+            fg="black"
         )
         subtitle_label.pack(pady=(0, 10))
         
@@ -2883,54 +3002,90 @@ Return the list now:"""
         
         canvas.bind('<Configure>', configure_canvas_width)
         
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (cross-platform) - with safety checks
         def on_mousewheel(event):
-            if event.delta:
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if canvas.winfo_exists() and event.delta:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
         
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        def on_mousewheel_mac(event):
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
         
-        # Get all images from outputs folder
-        outputs_dir = "outputs"
-        all_images = []
-        if os.path.exists(outputs_dir):
-            all_images = sorted([os.path.join(outputs_dir, f) for f in os.listdir(outputs_dir) if f.endswith('.png')])
+        # Store scroll callback for use in order widgets
+        if platform.system() == 'Darwin':  # macOS
+            validation_scroll_callback = on_mousewheel_mac
+        else:  # Windows/Linux
+            validation_scroll_callback = on_mousewheel
+        
+        # Bind for different platforms - local bindings only
+        canvas.bind("<MouseWheel>", validation_scroll_callback)
+        scrollable_frame.bind("<MouseWheel>", validation_scroll_callback)
         
         # Show each completed order
         for order_data in validation_data:
-            self.create_validation_order_widget(scrollable_frame, order_data, all_images)
+            self.create_validation_order_widget(scrollable_frame, order_data, validation_scroll_callback)
         
         # If no validation data but we have images, show all images
-        if not validation_data and all_images:
-            info_label = tk.Label(
-                scrollable_frame,
-                text="No order tracking data available, but here are all generated images:",
-                font=("Segoe UI", 11, "bold"),
-                bg="white",
-                fg="#666"
-            )
-            info_label.pack(pady=20)
+        if not validation_data:
+            # Get all images from outputs folder as fallback
+            outputs_dir = "outputs"
+            all_images = []
+            if os.path.exists(outputs_dir):
+                all_images = sorted([os.path.join(outputs_dir, f) for f in os.listdir(outputs_dir) if f.endswith('.png')])
             
-            # Show all images in a grid
-            self.create_image_grid(scrollable_frame, all_images)
+            if all_images:
+                info_label = tk.Label(
+                    scrollable_frame,
+                    text="No order tracking data available, but here are all generated images:",
+                    font=("Segoe UI", 16, "bold"),
+                    bg="white",
+                    fg="black"
+                )
+                info_label.pack(pady=20)
+                info_label.bind("<MouseWheel>", validation_scroll_callback)
+                
+                # Show all images in a grid
+                self.create_image_grid(scrollable_frame, all_images, scroll_callback=validation_scroll_callback)
         
-        # Close button
+        # Button frame
         close_btn_frame = tk.Frame(val_window, bg="#f0f0f0", relief=tk.RAISED, bd=2)
         close_btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
         
-        close_btn = tk.Button(
+        # Save as PDF button
+        save_pdf_btn = tk.Button(
             close_btn_frame,
-            text="Close",
-            command=val_window.destroy,
-            font=("Segoe UI", 11),
-            bg="#6c757d",
-            fg="white",
+            text="💾 Save as PDF",
+            command=lambda: self.save_validation_pdf(validation_data),
+            font=("Segoe UI", 16, "bold"),
+            bg=self.accent_color,
+            fg="black",
             relief=tk.FLAT,
             padx=30,
             pady=10,
             cursor="hand2"
         )
-        close_btn.pack(pady=15)
+        save_pdf_btn.pack(side=tk.LEFT, padx=(20, 10), pady=15)
+        
+        # Close button
+        close_btn = tk.Button(
+            close_btn_frame,
+            text="Close",
+            command=val_window.destroy,
+            font=("Segoe UI", 16),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=30,
+            pady=10,
+            cursor="hand2"
+        )
+        close_btn.pack(side=tk.RIGHT, padx=(10, 20), pady=15)
         
         # Cleanup on close
         def on_close():
@@ -2939,80 +3094,91 @@ Return the list now:"""
         
         val_window.protocol("WM_DELETE_WINDOW", on_close)
     
-    def create_validation_order_widget(self, parent, order_data, all_images):
+    def create_validation_order_widget(self, parent, order_data, scroll_callback):
         """Create a widget showing order details and associated images"""
         from PIL import Image, ImageTk
         
         # Order container
         order_container = tk.Frame(parent, bg="white", relief=tk.RIDGE, bd=2)
         order_container.pack(fill=tk.X, padx=20, pady=15)
+        order_container.bind("<MouseWheel>", scroll_callback)
         
         # Header with order info
         header_frame = tk.Frame(order_container, bg="#f8f9fa")
         header_frame.pack(fill=tk.X, padx=0, pady=0)
+        header_frame.bind("<MouseWheel>", scroll_callback)
         
         # Order number
         order_num_label = tk.Label(
             header_frame,
             text=f"Order #{order_data['order_number']}",
-            font=("Segoe UI", 14, "bold"),
+            font=("Segoe UI", 21, "bold"),
             bg="#f8f9fa",
-            fg="#333"
+            fg="black"
         )
         order_num_label.pack(side=tk.LEFT, padx=15, pady=10)
+        order_num_label.bind("<MouseWheel>", scroll_callback)
         
         # Address
         address_label = tk.Label(
             header_frame,
             text=f"📍 {order_data['name']} • {order_data['address']}",
-            font=("Segoe UI", 11),
+            font=("Segoe UI", 16),
             bg="#f8f9fa",
-            fg="#666"
+            fg="black"
         )
         address_label.pack(side=tk.LEFT, padx=(20, 15), pady=10)
+        address_label.bind("<MouseWheel>", scroll_callback)
         
         # Items list
         items_frame = tk.Frame(order_container, bg="white")
         items_frame.pack(fill=tk.X, padx=15, pady=10)
+        items_frame.bind("<MouseWheel>", scroll_callback)
         
         items_label = tk.Label(
             items_frame,
             text="Items to include in envelope:",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 15, "bold"),
             bg="white",
-            fg="#333"
+            fg="black"
         )
         items_label.pack(anchor=tk.W, pady=(0, 5))
+        items_label.bind("<MouseWheel>", scroll_callback)
         
         for item in order_data['items']:
             item_label = tk.Label(
                 items_frame,
                 text=f"  • {item.get('personalization', 'No personalization')}",
-                font=("Segoe UI", 10),
+                font=("Segoe UI", 15),
                 bg="white",
                 fg="#555"
             )
             item_label.pack(anchor=tk.W, pady=2)
+            item_label.bind("<MouseWheel>", scroll_callback)
         
-        # Images grid
-        if all_images:
+        # Images grid - use the specific images matched to this order
+        order_images = order_data.get('images', [])
+        if order_images:
             images_label = tk.Label(
                 order_container,
                 text="Generated Images:",
-                font=("Segoe UI", 10, "bold"),
+                font=("Segoe UI", 15, "bold"),
                 bg="white",
-                fg="#333"
+                fg="black"
             )
             images_label.pack(anchor=tk.W, padx=15, pady=(10, 5))
+            images_label.bind("<MouseWheel>", scroll_callback)
             
-            self.create_image_grid(order_container, all_images[:len(order_data['items'])], max_cols=4)
+            self.create_image_grid(order_container, order_images, max_cols=4, scroll_callback=scroll_callback)
     
-    def create_image_grid(self, parent, image_paths, max_cols=5):
+    def create_image_grid(self, parent, image_paths, max_cols=5, scroll_callback=None):
         """Create a grid of image thumbnails"""
         from PIL import Image, ImageTk
         
         grid_frame = tk.Frame(parent, bg="white")
         grid_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+        if scroll_callback:
+            grid_frame.bind("<MouseWheel>", scroll_callback)
         
         if not hasattr(self, '_validation_images'):
             self._validation_images = []
@@ -3024,6 +3190,8 @@ Return the list now:"""
             # Create image container
             img_container = tk.Frame(grid_frame, bg="#f0f0f0", relief=tk.RIDGE, bd=1)
             img_container.grid(row=row, column=col, padx=5, pady=5)
+            if scroll_callback:
+                img_container.bind("<MouseWheel>", scroll_callback)
             
             try:
                 # Load and resize image
@@ -3035,6 +3203,8 @@ Return the list now:"""
                 img_label = tk.Label(img_container, image=photo, bg="#f0f0f0")
                 img_label.image = photo
                 img_label.pack(padx=5, pady=5)
+                if scroll_callback:
+                    img_label.bind("<MouseWheel>", scroll_callback)
                 
                 # Keep reference
                 self._validation_images.append(photo)
@@ -3043,21 +3213,152 @@ Return the list now:"""
                 filename_label = tk.Label(
                     img_container,
                     text=os.path.basename(img_path),
-                    font=("Segoe UI", 8),
+                    font=("Segoe UI", 12),
                     bg="#f0f0f0",
-                    fg="#666"
+                    fg="black"
                 )
                 filename_label.pack(pady=(0, 5))
+                if scroll_callback:
+                    filename_label.bind("<MouseWheel>", scroll_callback)
                 
             except Exception as e:
                 error_label = tk.Label(
                     img_container,
                     text=f"Error loading\n{os.path.basename(img_path)}",
-                    font=("Segoe UI", 8),
+                    font=("Segoe UI", 12),
                     bg="#f0f0f0",
-                    fg="#d9534f"
+                    fg="black"
                 )
                 error_label.pack(padx=10, pady=10)
+                if scroll_callback:
+                    error_label.bind("<MouseWheel>", scroll_callback)
+    
+    def save_validation_pdf(self, validation_data):
+        """Save validation data as a PDF document"""
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib import colors
+            from reportlab.lib.units import inch
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        except ImportError:
+            messagebox.showerror(
+                "Library Missing",
+                "ReportLab library is required to generate PDFs.\n\n"
+                "Please install it with:\npip install reportlab"
+            )
+            return
+        
+        # Ask user where to save
+        from tkinter import filedialog
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_filename = f"validation_report_{timestamp}.pdf"
+        
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+            initialfile=default_filename,
+            title="Save Validation Report"
+        )
+        
+        if not filepath:
+            return  # User cancelled
+        
+        try:
+            # Create PDF
+            doc = SimpleDocTemplate(filepath, pagesize=letter)
+            story = []
+            styles = getSampleStyleSheet()
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=24,
+                textColor=colors.HexColor('#4a90e2'),
+                spaceAfter=30,
+                alignment=TA_CENTER
+            )
+            story.append(Paragraph("Order Validation Report", title_style))
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Process each order
+            for order_data in validation_data:
+                # Order header
+                header_style = ParagraphStyle(
+                    'OrderHeader',
+                    parent=styles['Heading2'],
+                    fontSize=16,
+                    textColor=colors.HexColor('#333333'),
+                    spaceAfter=10
+                )
+                story.append(Paragraph(f"Order #{order_data['order_number']}", header_style))
+                
+                # Customer info
+                customer_info = f"<b>Customer:</b> {order_data['name']}<br/><b>Address:</b> {order_data['address']}"
+                story.append(Paragraph(customer_info, styles['Normal']))
+                story.append(Spacer(1, 0.1*inch))
+                
+                # Items list
+                story.append(Paragraph("<b>Items in this order:</b>", styles['Normal']))
+                for item in order_data['items']:
+                    item_text = f"• {item.get('personalization', 'No personalization')}"
+                    story.append(Paragraph(item_text, styles['Normal']))
+                story.append(Spacer(1, 0.1*inch))
+                
+                # Images
+                order_images = order_data.get('images', [])
+                if order_images:
+                    story.append(Paragraph("<b>Generated Images:</b>", styles['Normal']))
+                    story.append(Spacer(1, 0.1*inch))
+                    
+                    # Create image grid (2 images per row)
+                    img_data = []
+                    row = []
+                    for img_path in order_images:
+                        try:
+                            # Add image to row
+                            rl_img = RLImage(img_path, width=2*inch, height=2*inch)
+                            row.append(rl_img)
+                            
+                            # If row is full or last image, add to data
+                            if len(row) == 2 or img_path == order_images[-1]:
+                                # Pad row if needed
+                                while len(row) < 2:
+                                    row.append('')
+                                img_data.append(row)
+                                row = []
+                        except Exception as e:
+                            # Skip images that can't be loaded
+                            pass
+                    
+                    if img_data:
+                        img_table = Table(img_data, colWidths=[2.5*inch, 2.5*inch])
+                        img_table.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ]))
+                        story.append(img_table)
+                
+                story.append(Spacer(1, 0.3*inch))
+            
+            # Build PDF
+            doc.build(story)
+            
+            messagebox.showinfo(
+                "PDF Saved",
+                f"Validation report saved successfully!\n\n{filepath}"
+            )
+            
+            # Ask if user wants to open the PDF
+            if messagebox.askyesno("Open PDF", "Would you like to open the PDF now?"):
+                open_file_or_folder(filepath)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save PDF:\n{str(e)}")
     
     def show_help(self):
         """Show help dialog"""
@@ -3122,14 +3423,14 @@ For detailed help, see README.md or QUICKSTART.md
         help_label = tk.Label(
             help_window,
             text="❓ Help & Instructions",
-            font=("Segoe UI", 14, "bold"),
+            font=("Segoe UI", 21, "bold"),
             bg="white"
         )
         help_label.pack(pady=10)
         
         help_scroll = scrolledtext.ScrolledText(
             help_window,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 15),
             bg="white",
             wrap=tk.WORD
         )
