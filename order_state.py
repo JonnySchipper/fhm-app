@@ -84,6 +84,9 @@ def parse_orders_from_file(filepath=ETSY_EMAILS_FILE):
                 order_data['state'] = line.replace('State:', '').strip()
                 if order_data['state'] == '[Not found]':
                     order_data['state'] = ''
+            elif line.startswith('Transaction ID:'):
+                # Skip Transaction ID lines - we just care about items/personalization
+                continue
             elif line.startswith('Item:'):
                 # Save previous item if exists
                 if current_item:
@@ -94,7 +97,21 @@ def parse_orders_from_file(filepath=ETSY_EMAILS_FILE):
                 current_item = line.replace('Item:', '').strip()
                 current_personalization = None
             elif line.startswith('Personalization:'):
-                current_personalization = line.replace('Personalization:', '').strip()
+                # Each personalization line creates a separate item (for image matching)
+                new_personalization = line.replace('Personalization:', '').strip()
+                
+                if current_personalization:
+                    # If we already have a personalization, save the previous item first
+                    if current_item:
+                        order_data['items'].append({
+                            'item': current_item,
+                            'personalization': current_personalization
+                        })
+                    # Start a new item with same item description
+                    current_personalization = new_personalization
+                else:
+                    # First personalization for this item
+                    current_personalization = new_personalization
         
         # Add last pending item
         if current_item:
@@ -102,6 +119,36 @@ def parse_orders_from_file(filepath=ETSY_EMAILS_FILE):
                 'item': current_item,
                 'personalization': current_personalization or ''
             })
+        
+        # IMPORTANT: Split comma-separated character-name pairs into separate items
+        # This handles cases like "Character Stitch and Name Rhett, Character Star Lord and Name Dad"
+        expanded_items = []
+        for item in order_data['items']:
+            pers = item['personalization']
+            
+            # Check if personalization has multiple character-name pairs (comma separated)
+            # Pattern: "Character X ... Name Y, Character A ... Name B"
+            if ', Character' in pers and 'Name' in pers:
+                # Split by ", Character" and restore "Character" prefix
+                parts = pers.split(', Character')
+                for i, part in enumerate(parts):
+                    if i == 0:
+                        # First part already has "Character"
+                        expanded_items.append({
+                            'item': item['item'],
+                            'personalization': part.strip()
+                        })
+                    else:
+                        # Restore "Character" prefix with space
+                        expanded_items.append({
+                            'item': item['item'],
+                            'personalization': 'Character ' + part.strip()
+                        })
+            else:
+                # No comma-separated characters, keep as-is
+                expanded_items.append(item)
+        
+        order_data['items'] = expanded_items
         
         # Only add order if it has an order number
         if order_data['order_number']:

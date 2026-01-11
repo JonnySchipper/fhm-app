@@ -26,8 +26,14 @@ ORDER_RE = re.compile(r"Order\s*#(\d+)", re.IGNORECASE)
 AMOUNT_RE = re.compile(r"\[\s*\$?([0-9]+(?:\.[0-9]{2})?)\s*,\s*Order\s*#\d+\s*\]", re.IGNORECASE)
 SHIPBY_RE = re.compile(r"Ship by\s+([A-Za-z]{3,9}\s+\d{1,2})", re.IGNORECASE)
 
-# Only keep these lines from the email body:
-KEEP_LINE_RE = re.compile(r"^\s*(Item|Personalization)\s*:\s*(.+)\s*$", re.IGNORECASE)
+# Extract Transaction ID and all content until pricing section:
+TRANSACTION_ID_RE = re.compile(r"^\s*Transaction\s*ID\s*:\s*(.+)\s*$", re.IGNORECASE)
+# Stop capturing when we hit pricing/totals section
+STOP_CAPTURE_RE = re.compile(r"^\s*(Item total|Subtotal|Order Total|Discount|Shipping|Sales Tax|Applied discounts|Quantity)\s*:", re.IGNORECASE)
+# These are the lines we want to keep
+KEEP_LINE_RE = re.compile(r"^\s*(Item|Personalization|Character)\s*:\s*(.+)\s*$", re.IGNORECASE)
+# Also match numbered character lines
+CHARACTER_LINE_RE = re.compile(r"^\s*\d+\)\s*(.+)$", re.IGNORECASE)
 
 # Shipping snippet (HTML spans)
 SPAN_NAME_RE = re.compile(r"<span[^>]*class=['\"]name['\"][^>]*>(.*?)</span>", re.IGNORECASE | re.DOTALL)
@@ -103,9 +109,9 @@ def _decode_part_payload(part) -> str:
 
 
 def extract_plain_and_html(msg):
-    """Return (text_plain, text_html). Prefer first encountered of each."""
-    text_plain = ""
-    text_html = ""
+    """Return (text_plain, text_html). Collect ALL parts to ensure nothing is missed."""
+    text_plain_parts = []
+    text_html_parts = []
 
     if msg.is_multipart():
         for part in msg.walk():
@@ -113,18 +119,29 @@ def extract_plain_and_html(msg):
             if disp == "attachment":
                 continue
             ctype = part.get_content_type()
-            if ctype == "text/plain" and not text_plain:
-                text_plain = _decode_part_payload(part)
-            elif ctype == "text/html" and not text_html:
-                text_html = _decode_part_payload(part)
+            if ctype == "text/plain":
+                # Collect ALL text/plain parts
+                content = _decode_part_payload(part)
+                if content:
+                    text_plain_parts.append(content)
+            elif ctype == "text/html":
+                # Collect ALL text/html parts
+                content = _decode_part_payload(part)
+                if content:
+                    text_html_parts.append(content)
     else:
         ctype = msg.get_content_type()
+        content = _decode_part_payload(msg)
         if ctype == "text/html":
-            text_html = _decode_part_payload(msg)
+            text_html_parts.append(content)
         else:
-            text_plain = _decode_part_payload(msg)
+            text_plain_parts.append(content)
 
-    return text_plain or "", text_html or ""
+    # Combine all parts with newlines to ensure we don't miss anything
+    text_plain = "\n\n".join(text_plain_parts) if text_plain_parts else ""
+    text_html = "\n\n".join(text_html_parts) if text_html_parts else ""
+
+    return text_plain, text_html
 
 
 def html_to_text_minimal(html_str: str) -> str:
@@ -173,6 +190,70 @@ def load_processed_set():
         if line.strip()
     )
 
+def get_existing_orders_in_snippets():
+    """Get set of order numbers that already exist in the snippets file"""
+    p = Path(EMAIL_SNIPPETS_FILE)
+    if not p.exists():
+        return set()
+    
+    orders = set()
+    content = p.read_text(encoding="utf-8", errors="ignore")
+    
+    # Find all "Order: XXXXXXX" lines
+    for line in content.splitlines():
+        if line.startswith("Order: "):
+            order_no = line.replace("Order: ", "").strip()
+            if order_no:
+                orders.add(order_no)
+    
+    return orders
+
+def deduplicate_snippets_file():
+    """Remove duplicate orders from the snippets file (keeps first occurrence)"""
+    p = Path(EMAIL_SNIPPETS_FILE)
+    if not p.exists():
+        print(f"No file found at {EMAIL_SNIPPETS_FILE}")
+        return
+    
+    content = p.read_text(encoding="utf-8", errors="ignore")
+    
+    # Split by separator
+    sections = content.split("-" * 60)
+    
+    seen_orders = set()
+    unique_sections = []
+    duplicates_removed = 0
+    
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+        
+        # Find the order number in this section
+        order_no = None
+        for line in section.splitlines():
+            if line.startswith("Order: "):
+                order_no = line.replace("Order: ", "").strip()
+                break
+        
+        if order_no:
+            if order_no in seen_orders:
+                duplicates_removed += 1
+                continue  # Skip this duplicate
+            seen_orders.add(order_no)
+        
+        unique_sections.append(section)
+    
+    # Rebuild the file
+    with open(EMAIL_SNIPPETS_FILE, "w", encoding="utf-8") as f:
+        for section in unique_sections:
+            f.write("-" * 60 + "\n\n")
+            f.write(section + "\n\n")
+    
+    print(f"✓ Deduplicated {EMAIL_SNIPPETS_FILE}")
+    print(f"  Kept: {len(unique_sections)} unique orders")
+    print(f"  Removed: {duplicates_removed} duplicates")
+
 
 def append_processed_key(key: str):
     with open(PROCESSED_FILE, "a", encoding="utf-8") as f:
@@ -181,22 +262,81 @@ def append_processed_key(key: str):
 
 def extract_item_and_personalization_lines(body_text: str) -> str:
     """
-    Returns ONLY the lines that start with:
-      - Item:
-      - Personalization:
+    Returns lines grouped by Transaction ID.
+    
+    Captures everything from "Transaction ID:" until the pricing section starts
+    (Item total, Subtotal, Order Total, etc.)
+    
+    This ensures we get ALL order details regardless of format variations.
     """
     if not body_text:
         return ""
 
-    kept = []
-    for line in body_text.splitlines():
-        m = KEEP_LINE_RE.match(line)
-        if m:
-            label = m.group(1).capitalize()  # Item / Personalization
-            value = m.group(2).strip()
-            kept.append(f"{label}: {value}")
-
-    return "\n".join(kept).strip()
+    # Use a dict to group items by transaction ID
+    # Key: transaction_id, Value: list of lines
+    transactions = {}
+    current_transaction_id = None
+    capturing = False  # Are we currently capturing lines for a transaction?
+    items_without_transaction = []
+    
+    # Normalize line endings and split - this ensures we get ALL lines
+    normalized = body_text.replace('\r\n', '\n').replace('\r', '\n')
+    
+    for line in normalized.splitlines():
+        # Strip leading/trailing whitespace for matching
+        line_stripped = line.strip()
+        if not line_stripped:
+            continue
+        
+        # Check for Transaction ID - START capturing
+        trans_match = TRANSACTION_ID_RE.match(line_stripped)
+        if trans_match:
+            transaction_id = trans_match.group(1).strip()
+            current_transaction_id = transaction_id
+            capturing = True
+            # Initialize this transaction if not seen before
+            if transaction_id not in transactions:
+                transactions[transaction_id] = []
+            continue
+        
+        # Check if we should STOP capturing (hit pricing section)
+        if capturing and STOP_CAPTURE_RE.match(line_stripped):
+            capturing = False
+            current_transaction_id = None
+            continue
+        
+        # If we're capturing, check what kind of line this is
+        if capturing and current_transaction_id:
+            # Check for Item/Personalization/Character lines
+            item_match = KEEP_LINE_RE.match(line_stripped)
+            if item_match:
+                label = item_match.group(1).capitalize()
+                value = item_match.group(2).strip()
+                transactions[current_transaction_id].append(f"{label}: {value}")
+                continue
+            
+            # Check for numbered lines (e.g., "1) Character: ..." or just "1) Sleeping Beauty/ Maebry")
+            char_match = CHARACTER_LINE_RE.match(line_stripped)
+            if char_match:
+                value = char_match.group(1).strip()
+                transactions[current_transaction_id].append(f"Personalization: {value}")
+                continue
+    
+    # Build output
+    result = []
+    
+    # Add transaction groups
+    for trans_id, items in transactions.items():
+        if items:  # Only add if there are items
+            result.append(f"\nTransaction ID: {trans_id}")
+            for item_line in items:
+                result.append(f"  {item_line}")
+    
+    # Add items without transaction IDs (if any exist)
+    for line in items_without_transaction:
+        result.append(line)
+    
+    return "\n".join(result).strip()
 
 
 def _clean_span_value(v: str) -> str:
@@ -232,8 +372,15 @@ def extract_name_city_state_from_html(html_body: str):
 # =========================
 
 def process_recent_etsy_sales_stop_on_processed():
+    # First, clean up any existing duplicates in the snippets file
+    if Path(EMAIL_SNIPPETS_FILE).exists():
+        print("Checking for duplicates in existing snippets file...")
+        deduplicate_snippets_file()
+        print()
+    
     gmail_user, gmail_pass = load_gmail_credentials()
     processed = load_processed_set()
+    existing_orders = get_existing_orders_in_snippets()  # Check what's already in the output file
 
     mail = imaplib.IMAP4_SSL(IMAP_HOST)
     mail.login(gmail_user, gmail_pass)
@@ -278,27 +425,47 @@ def process_recent_etsy_sales_stop_on_processed():
 
         plain_body, html_body = extract_plain_and_html(msg)
 
-        # Your snippet (Item/Personalization) - try plain first, then HTML->text fallback
-        snippet = extract_item_and_personalization_lines(plain_body)
-        if not snippet and html_body:
-            snippet = extract_item_and_personalization_lines(html_to_text_minimal(html_body))
-
+        # Combine plain and HTML bodies FIRST, then extract
+        # This ensures Transaction ID grouping stays intact
+        combined_body = ""
+        if plain_body:
+            combined_body = plain_body
+        if html_body:
+            html_as_text = html_to_text_minimal(html_body)
+            # If we have both, combine them
+            if combined_body:
+                combined_body = combined_body + "\n\n" + html_as_text
+            else:
+                combined_body = html_as_text
+        
+        # Extract from the combined body - this keeps Transaction ID grouping intact
+        snippet = extract_item_and_personalization_lines(combined_body)
+        
         if not snippet:
             snippet = "[No lines starting with 'Item:' or 'Personalization:' were found in this email body.]"
 
         # Name / City / State from HTML portion
         name, city, state = extract_name_city_state_from_html(html_body)
 
-        with open(EMAIL_SNIPPETS_FILE, "a", encoding="utf-8") as f:
-            f.write("-" * 60 + "\n\n")
-            f.write(f"Order: {order_no}\n")
-            f.write(f"Name: {name or '[Not found]'}\n")
-            f.write(f"City: {city or '[Not found]'}\n")
-            f.write(f"State: {state or '[Not found]'}\n\n")
-            f.write(snippet + "\n\n")
-            f.write("-" * 60 + "\n\n")
+        # Check if this order already exists in the snippets file (prevents duplicates)
+        if order_no and order_no in existing_orders:
+            print(f"⚠️ Order {order_no} already exists in {EMAIL_SNIPPETS_FILE} - skipping duplicate")
+        else:
+            # Write to snippets file
+            with open(EMAIL_SNIPPETS_FILE, "a", encoding="utf-8") as f:
+                f.write("-" * 60 + "\n\n")
+                f.write(f"Order: {order_no}\n")
+                f.write(f"Name: {name or '[Not found]'}\n")
+                f.write(f"City: {city or '[Not found]'}\n")
+                f.write(f"State: {state or '[Not found]'}\n\n")
+                f.write(snippet + "\n\n")
+                f.write("-" * 60 + "\n\n")
+            
+            # Add to our tracking set
+            if order_no:
+                existing_orders.add(order_no)
 
-        # Record processed key
+        # Record processed key (always mark as processed even if duplicate in snippets)
         append_processed_key(processed_key)
         processed.add(processed_key)
 
@@ -310,4 +477,10 @@ def process_recent_etsy_sales_stop_on_processed():
 
 
 if __name__ == "__main__":
-    process_recent_etsy_sales_stop_on_processed()
+    import sys
+    
+    # Allow running deduplication separately: python pullorders.py --dedupe
+    if len(sys.argv) > 1 and sys.argv[1] == "--dedupe":
+        deduplicate_snippets_file()
+    else:
+        process_recent_etsy_sales_stop_on_processed()

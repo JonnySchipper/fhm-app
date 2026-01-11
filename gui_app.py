@@ -138,6 +138,21 @@ class OrderProcessorGUI:
         )
         subtitle_label.pack(pady=(0, 10))
         
+        # View Log button (top left)
+        view_log_btn = tk.Button(
+            title_frame,
+            text="📋 View Log",
+            command=self.show_log_window,
+            font=("Segoe UI", 14, "bold"),
+            bg="white",
+            fg="black",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        view_log_btn.place(relx=0.0, rely=0.5, anchor=tk.W, x=10)
+        
         # Zoom controls (top right)
         zoom_frame = tk.Frame(title_frame, bg=self.accent_color)
         zoom_frame.place(relx=1.0, rely=0.5, anchor=tk.E, x=-10)
@@ -486,6 +501,25 @@ class OrderProcessorGUI:
         )
         self.raw_text.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
+        # Enable mouse wheel scrolling on Mac for raw text
+        def on_raw_scroll_mac(event):
+            try:
+                self.raw_text.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
+        
+        def on_raw_scroll(event):
+            try:
+                if event.delta:
+                    self.raw_text.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
+        
+        if platform.system() == 'Darwin':  # macOS
+            self.raw_text.bind("<MouseWheel>", on_raw_scroll_mac)
+        else:  # Windows/Linux
+            self.raw_text.bind("<MouseWheel>", on_raw_scroll)
+        
         # Placeholder
         placeholder = """Paste order details here, like:
 
@@ -597,6 +631,25 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         )
         self.order_input.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
+        # Enable mouse wheel scrolling on Mac for order input
+        def on_input_scroll_mac(event):
+            try:
+                self.order_input.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
+        
+        def on_input_scroll(event):
+            try:
+                if event.delta:
+                    self.order_input.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
+        
+        if platform.system() == 'Darwin':  # macOS
+            self.order_input.bind("<MouseWheel>", on_input_scroll_mac)
+        else:  # Windows/Linux
+            self.order_input.bind("<MouseWheel>", on_input_scroll)
+
         # Placeholder text
         placeholder = "mickey-captain,Johnny\nminnie-captain,Sarah\nstitch-captain,Michael\nmoana-captain,Emma"
         self.order_input.insert(1.0, placeholder)
@@ -705,6 +758,25 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         )
         self.preview_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
+        # Enable mouse wheel scrolling on Mac for preview text
+        def on_preview_scroll_mac(event):
+            try:
+                self.preview_text.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
+        
+        def on_preview_scroll(event):
+            try:
+                if event.delta:
+                    self.preview_text.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
+        
+        if platform.system() == 'Darwin':  # macOS
+            self.preview_text.bind("<MouseWheel>", on_preview_scroll_mac)
+        else:  # Windows/Linux
+            self.preview_text.bind("<MouseWheel>", on_preview_scroll)
+        
     def create_progress_section(self, parent):
         """Create progress tracking section"""
         progress_frame = tk.LabelFrame(
@@ -730,12 +802,70 @@ Disney Cruise Door Magnet - 3 magnets: Minnie, Donald, Goofy (all captain theme)
         self.log_text = scrolledtext.ScrolledText(
             progress_frame,
             font=("Consolas", 12),
-            height=8,
+            height=15,  # Increased height to see more logs
             bg="#1e1e1e",
             fg="black",
-            relief=tk.FLAT
+            relief=tk.SUNKEN,
+            bd=2
         )
         self.log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        
+        # Enable mouse wheel scrolling on Mac for the log text
+        def on_log_scroll_mac(event):
+            try:
+                self.log_text.yview_scroll(int(-1*event.delta), "units")
+            except:
+                pass
+        
+        def on_log_scroll(event):
+            try:
+                if event.delta:
+                    self.log_text.yview_scroll(int(-1*(event.delta/120)), "units")
+            except:
+                pass
+        
+        if platform.system() == 'Darwin':  # macOS
+            self.log_text.bind("<MouseWheel>", on_log_scroll_mac)
+        else:  # Windows/Linux
+            self.log_text.bind("<MouseWheel>", on_log_scroll)
+        
+        # Log control buttons
+        log_btn_frame = tk.Frame(progress_frame, bg=self.bg_color)
+        log_btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+        
+        clear_log_btn = tk.Button(
+            log_btn_frame,
+            text="🗑️ Clear Log",
+            command=lambda: self.log_text.delete(1.0, tk.END),
+            font=("Segoe UI", 12),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        clear_log_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        def copy_log():
+            log_content = self.log_text.get(1.0, tk.END)
+            self.root.clipboard_clear()
+            self.root.clipboard_append(log_content)
+            messagebox.showinfo("Copied", "Log copied to clipboard!")
+        
+        copy_log_btn = tk.Button(
+            log_btn_frame,
+            text="📋 Copy Log",
+            command=copy_log,
+            font=("Segoe UI", 12),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        copy_log_btn.pack(side=tk.LEFT)
         
     def create_control_buttons(self, parent):
         """Create control buttons"""
@@ -1825,8 +1955,19 @@ pluto-captain,Sophia"""
             prefix = "ℹ"
             color = "#74c0fc"
         
+        # Insert message
+        self.log_text.config(state=tk.NORMAL)  # Enable editing
         self.log_text.insert(tk.END, f"[{timestamp}] {prefix} {message}\n")
+        
+        # Auto-scroll to bottom
         self.log_text.see(tk.END)
+        self.log_text.yview_moveto(1.0)  # Force scroll to bottom
+        
+        # Keep log from getting too long (keep last 500 lines)
+        line_count = int(self.log_text.index('end-1c').split('.')[0])
+        if line_count > 500:
+            self.log_text.delete('1.0', f'{line_count-500}.0')
+        
         self.root.update_idletasks()
         
     def process_orders(self):
@@ -1987,27 +2128,222 @@ pluto-captain,Sophia"""
                 # Enable validation button
                 self.validation_btn.config(state=tk.NORMAL)
                
-                # Find all individual order PDFs
-                pdf_files = []
-                for file in sorted(os.listdir('.')):
+                # Find all individual order PDFs from the MOST RECENT processing session
+                # Group PDFs by timestamp
+                pdf_by_timestamp = {}
+                
+                for file in os.listdir('.'):
                     if file.startswith('order_output_') and file.endswith('.pdf'):
-                        pdf_files.append(file)
+                        try:
+                            # Extract timestamp (e.g., "order_output_20260108_204455_1.pdf" -> "20260108_204455")
+                            parts = file.replace('.pdf', '').split('_')
+                            timestamp = '_'.join(parts[2:4])  # Get date_time part
+                            
+                            if timestamp not in pdf_by_timestamp:
+                                pdf_by_timestamp[timestamp] = []
+                            pdf_by_timestamp[timestamp].append(file)
+                        except:
+                            pass
+                
+                # Get the most recent timestamp (latest alphabetically)
+                if not pdf_by_timestamp:
+                    self.log("No order PDFs found", "warning")
+                    return
+                
+                most_recent_timestamp = max(pdf_by_timestamp.keys())
+                pdf_files = pdf_by_timestamp[most_recent_timestamp]
+                
+                self.log(f"Using PDFs from session: {most_recent_timestamp}", "info")
+                
+                # Sort PDFs numerically by the number in filename (e.g., order_output_20260108_204455_1.pdf)
+                def extract_pdf_number(filename):
+                    try:
+                        # Extract the last number before .pdf (e.g., "order_output_20260108_204455_10.pdf" -> 10)
+                        parts = filename.replace('.pdf', '').split('_')
+                        return int(parts[-1])
+                    except:
+                        return 0
+                
+                pdf_files.sort(key=extract_pdf_number)
+                
+                # CRITICAL: Check for duplicates in the list
+                self.log(f"Found {len(pdf_files)} PDFs from session {most_recent_timestamp}", "info")
+                
+                # Check for duplicate filenames
+                seen_files = set()
+                duplicates = []
+                for pdf in pdf_files:
+                    if pdf in seen_files:
+                        duplicates.append(pdf)
+                    seen_files.add(pdf)
+                
+                if duplicates:
+                    self.log(f"⚠️⚠️⚠️ CRITICAL: Found {len(duplicates)} DUPLICATE filenames in list!", "error")
+                    for dup in duplicates:
+                        self.log(f"  DUPLICATE: {dup}", "error")
+                    # Remove duplicates
+                    pdf_files = list(dict.fromkeys(pdf_files))  # Preserves order, removes dupes
+                    self.log(f"Removed duplicates, now have {len(pdf_files)} unique PDFs", "info")
+                
+                # Check for duplicate PDF numbers
+                pdf_numbers = [extract_pdf_number(pdf) for pdf in pdf_files]
+                seen_numbers = set()
+                duplicate_numbers = []
+                for num, pdf in zip(pdf_numbers, pdf_files):
+                    if num in seen_numbers:
+                        duplicate_numbers.append((num, pdf))
+                    seen_numbers.add(num)
+                
+                if duplicate_numbers:
+                    self.log(f"⚠️⚠️⚠️ CRITICAL: Found PDFs with same number!", "error")
+                    for num, pdf in duplicate_numbers:
+                        self.log(f"  Number {num} appears multiple times: {pdf}", "error")
+                
+                self.log("PDF List (in order):", "info")
+                for idx, pdf in enumerate(pdf_files):
+                    pdf_num = extract_pdf_number(pdf)
+                    file_size = os.path.getsize(pdf) if os.path.exists(pdf) else 0
+                    self.log(f"  Position {idx+1} → [PDF #{pdf_num}] {pdf} ({file_size:,} bytes)", "info")
                
                 if pdf_files:
-                    # === Flatten each individual PDF in place ===
-                    self.log("Flattening individual PDFs (removing hidden layers/data)...", "info")
+                    # === STEP 1: Verify PDFs before processing ===
+                    self.log("=" * 70, "info")
+                    self.log("STEP 1: Pre-Flatten Verification", "info")
+                    self.log("=" * 70, "info")
+                    from pypdf import PdfReader
+                    
+                    pre_flatten_status = {}
                     for pdf_file in pdf_files:
                         if os.path.exists(pdf_file):
-                            self.flatten_pdf_in_place(pdf_file, dpi=300)
-                    # ===========================================
-
+                            try:
+                                reader = PdfReader(pdf_file)
+                                page_count = len(reader.pages)
+                                file_size = os.path.getsize(pdf_file)
+                                pre_flatten_status[pdf_file] = {
+                                    'pages': page_count,
+                                    'size': file_size,
+                                    'status': 'ok' if page_count == 1 else 'warning'
+                                }
+                                self.log(f"  ✓ {pdf_file}: {page_count} page(s), {file_size:,} bytes", 
+                                        "success" if page_count == 1 else "warning")
+                                if page_count != 1:
+                                    self.log(f"      ⚠️ Expected 1 page, found {page_count}", "warning")
+                            except Exception as e:
+                                self.log(f"  ✗ {pdf_file}: ERROR - {str(e)}", "error")
+                                pre_flatten_status[pdf_file] = {'status': 'error', 'error': str(e)}
+                        else:
+                            self.log(f"  ✗ {pdf_file}: FILE NOT FOUND", "error")
+                            pre_flatten_status[pdf_file] = {'status': 'not_found'}
+                    
+                    # === STEP 2: Flatten each individual PDF in place ===
+                    self.log("=" * 70, "info")
+                    self.log("STEP 2: Flattening Individual PDFs", "info")
+                    self.log("=" * 70, "info")
+                    
+                    successfully_flattened = []
+                    failed_flattening = []
+                    
+                    for pdf_file in pdf_files:
+                        if os.path.exists(pdf_file):
+                            if self.flatten_pdf_in_place(pdf_file, dpi=300):
+                                successfully_flattened.append(pdf_file)
+                            else:
+                                failed_flattening.append(pdf_file)
+                                self.log(f"  ⚠️ Will try to use non-flattened version: {pdf_file}", "warning")
+                    
+                    if failed_flattening:
+                        self.log(f"Warning: {len(failed_flattening)} PDF(s) failed to flatten", "warning")
+                    
+                    # === STEP 3: Post-Flatten Verification ===
+                    self.log("=" * 70, "info")
+                    self.log("STEP 3: Post-Flatten Verification", "info")
+                    self.log("=" * 70, "info")
+                    
+                    for pdf_file in pdf_files:
+                        if os.path.exists(pdf_file):
+                            try:
+                                reader = PdfReader(pdf_file)
+                                page_count = len(reader.pages)
+                                file_size = os.path.getsize(pdf_file)
+                                
+                                # Compare with pre-flatten status
+                                if pdf_file in pre_flatten_status:
+                                    pre_pages = pre_flatten_status[pdf_file].get('pages', 0)
+                                    pre_size = pre_flatten_status[pdf_file].get('size', 0)
+                                    
+                                    if page_count != pre_pages:
+                                        self.log(f"  ⚠️ {pdf_file}: Page count changed {pre_pages} → {page_count}", "warning")
+                                    else:
+                                        self.log(f"  ✓ {pdf_file}: {page_count} page(s), {file_size:,} bytes", "success")
+                                else:
+                                    self.log(f"  ✓ {pdf_file}: {page_count} page(s), {file_size:,} bytes", "success")
+                                    
+                            except Exception as e:
+                                self.log(f"  ✗ {pdf_file}: ERROR - {str(e)}", "error")
+                    
+                    # === STEP 4: Create Master PDF ===
+                    self.log("=" * 70, "info")
+                    self.log("STEP 4: Creating Master PDF", "info")
+                    self.log("=" * 70, "info")
+                    
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     master_pdf_name = f"MASTER_ORDER_{timestamp}.pdf"
                    
                     if self.merge_pdfs(pdf_files, master_pdf_name):
-                        # === Flatten the master PDF ===
-                        self.log("Flattening master PDF...", "info")
-                        self.flatten_pdf_in_place(master_pdf_name, dpi=300)
+                        # === STEP 5: Flatten the master PDF ===
+                        self.log("=" * 70, "info")
+                        self.log("STEP 5: Flattening Master PDF", "info")
+                        self.log("=" * 70, "info")
+                        
+                        if self.flatten_pdf_in_place(master_pdf_name, dpi=300):
+                            self.log("✓ Master PDF flattened successfully", "success")
+                        else:
+                            self.log("⚠️ Master PDF flattening failed, but file should still be usable", "warning")
+                        
+                        # === STEP 6: Final Verification of Master PDF ===
+                        self.log("=" * 70, "info")
+                        self.log("STEP 6: Final Master PDF Verification", "info")
+                        self.log("=" * 70, "info")
+                        
+                        try:
+                            final_reader = PdfReader(master_pdf_name)
+                            final_page_count = len(final_reader.pages)
+                            final_size = os.path.getsize(master_pdf_name)
+                            
+                            self.log(f"Master PDF: {master_pdf_name}", "info")
+                            self.log(f"  Total pages: {final_page_count}", "info")
+                            self.log(f"  File size: {final_size:,} bytes", "info")
+                            self.log(f"  Expected pages: {len(pdf_files)}", "info")
+                            
+                            if final_page_count == len(pdf_files):
+                                self.log(f"✓ Page count matches perfectly!", "success")
+                            else:
+                                self.log(f"⚠️ WARNING: Expected {len(pdf_files)} pages but got {final_page_count}", "warning")
+                            
+                            # List all pages in master PDF with source mapping
+                            self.log("Master PDF Complete Page Mapping:", "info")
+                            self.log("(Shows which source file created each master page)", "info")
+                            for page_idx in range(final_page_count):
+                                master_page_num = page_idx + 1
+                                try:
+                                    page = final_reader.pages[page_idx]
+                                    
+                                    # Try to find the source from pdf_files list
+                                    if master_page_num <= len(pdf_files):
+                                        expected_source = pdf_files[page_idx]
+                                        expected_num = extract_pdf_number(expected_source)
+                                        self.log(f"  Master Page {master_page_num} ← {expected_source} [PDF #{expected_num}]", "success")
+                                    else:
+                                        self.log(f"  Master Page {master_page_num}: OK (no source mapping)", "success")
+                                except Exception as e:
+                                    self.log(f"  Master Page {master_page_num}: ERROR - {str(e)}", "error")
+                            
+                            self.log("=" * 70, "info")
+                            self.log("✓✓✓ ALL STEPS COMPLETE ✓✓✓", "success")
+                            self.log("=" * 70, "info")
+                            
+                        except Exception as e:
+                            self.log(f"Final verification error: {str(e)}", "error")
                         # ==============================
 
                         self.master_pdf_path = master_pdf_name
@@ -2027,9 +2363,10 @@ pluto-captain,Sophia"""
                             f"Orders processed and FLATTENED!\n\n"
                             f"✓ {len(pdf_files)} individual PDFs created (flattened)\n"
                             f"✓ Master PDF created and flattened: {master_pdf_name}\n"
+                            f"✓ Final page count: {final_page_count} pages\n"
                             f"✓ No editable text or hidden template data remains\n\n"
                             f"Master PDF opened automatically!\n\n"
-                            f"Check your PDF viewer!"
+                            f"Check the log for detailed verification results!"
                         )
                     else:
                         self.status_text.set("✓ Orders processed (individual PDFs flattened)")
@@ -2092,19 +2429,44 @@ pluto-captain,Sophia"""
             messagebox.showinfo("No Master PDF", "Master PDF not found. Process orders first.")
 
     def flatten_pdf_in_place(self, pdf_path, dpi=300):
-        """Rasterize all pages of a PDF and overwrite it with a flattened version."""
+        """Rasterize all pages of a PDF and overwrite it with a flattened version - CAREFULLY."""
         try:
+            # Step 1: Verify PDF exists and is readable
+            if not os.path.exists(pdf_path):
+                self.log(f"  ✗ File not found: {os.path.basename(pdf_path)}", "error")
+                return False
+                
+            file_size = os.path.getsize(pdf_path)
+            if file_size == 0:
+                self.log(f"  ✗ Empty file: {os.path.basename(pdf_path)}", "error")
+                return False
+            
+            # Step 2: Open and verify page count
             doc = fitz.open(pdf_path)
-            if doc.page_count == 0:
+            original_page_count = doc.page_count
+            
+            if original_page_count == 0:
                 doc.close()
-                return
+                self.log(f"  ⚠️ Skipped {os.path.basename(pdf_path)} (no pages)", "warning")
+                return False
+            
+            if original_page_count != 1:
+                self.log(f"  ⚠️ WARNING: {os.path.basename(pdf_path)} has {original_page_count} pages (expected 1)", "warning")
 
-            # Create a temporary output path
+            # Step 3: Create temporary output path
             temp_path = pdf_path + ".flattened_tmp.pdf"
+            
+            # Remove any existing temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
+            # Step 4: Create new flattened PDF with EXACT page count
             writer = fitz.open()  # New empty PDF
 
-            for page in doc:
+            # Process each page individually and track
+            for page_num in range(original_page_count):
+                page = doc[page_num]
+                
                 # Create a new blank page with the exact same dimensions
                 new_page = writer.new_page(width=page.rect.width, height=page.rect.height)
 
@@ -2115,43 +2477,229 @@ pluto-captain,Sophia"""
 
                 # Insert the rendered image (covers the entire page)
                 new_page.insert_image(new_page.rect, pixmap=pix)
+                
+                # Verify this page was added
+                if writer.page_count != page_num + 1:
+                    raise Exception(f"Page count mismatch after adding page {page_num + 1}")
 
-            # Save to temp file then replace original
+            flattened_page_count = writer.page_count
+
+            # Step 5: Verify page count matches
+            if flattened_page_count != original_page_count:
+                writer.close()
+                doc.close()
+                raise Exception(f"Page count mismatch: original={original_page_count}, flattened={flattened_page_count}")
+
+            # Step 6: Save to temp file
             writer.save(temp_path, garbage=4, deflate=True, clean=True)
             writer.close()
             doc.close()
+            
+            # Step 7: Verify temp file was created correctly
+            if not os.path.exists(temp_path):
+                raise Exception(f"Failed to create temp file: {temp_path}")
+            
+            temp_size = os.path.getsize(temp_path)
+            if temp_size == 0:
+                os.remove(temp_path)
+                raise Exception(f"Temp file is empty")
+            
+            # Step 8: Verify temp file page count
+            verify_doc = fitz.open(temp_path)
+            verify_count = verify_doc.page_count
+            verify_doc.close()
+            
+            if verify_count != original_page_count:
+                os.remove(temp_path)
+                raise Exception(f"Temp file page count wrong: expected={original_page_count}, got={verify_count}")
 
-            # Overwrite the original file
+            # Step 9: Replace original with flattened version
             os.replace(temp_path, pdf_path)
+            
+            # Step 10: Final verification
+            final_doc = fitz.open(pdf_path)
+            final_count = final_doc.page_count
+            final_doc.close()
+            
+            if final_count != original_page_count:
+                raise Exception(f"Final file page count wrong: expected={original_page_count}, got={final_count}")
 
-            self.log(f"Flattened: {os.path.basename(pdf_path)}", "success")
+            self.log(f"  ✓ {os.path.basename(pdf_path)} flattened successfully ({final_count} page)", "success")
+            return True
+                
         except Exception as e:
-            self.log(f"Failed to flatten {os.path.basename(pdf_path)}: {str(e)}", "error")
-            # If flattening fails, keep the original (non-flattened) file                
+            self.log(f"  ✗ Failed to flatten {os.path.basename(pdf_path)}: {str(e)}", "error")
+            # Clean up temp file if it exists
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except:
+                pass
+            return False                
     def merge_pdfs(self, pdf_files, output_path):
-        """Merge multiple PDF files into one master PDF"""
+        """Merge multiple PDF files into one master PDF - CAREFULLY with extensive validation"""
         try:
-            from PyPDF2 import PdfReader, PdfWriter
+            from pypdf import PdfReader, PdfWriter
             
             self.log(f"Merging {len(pdf_files)} PDFs into master PDF...", "info")
+            self.log("=" * 60, "info")
             
-            writer = PdfWriter()
-            
-            for pdf_file in pdf_files:
-                if os.path.exists(pdf_file):
+            # Step 1: Pre-validation - verify all PDFs before starting merge
+            self.log("Step 1: Pre-validation of all PDFs...", "info")
+            valid_pdfs = []
+            for idx, pdf_file in enumerate(pdf_files, 1):
+                if not os.path.exists(pdf_file):
+                    self.log(f"  [{idx}] ✗ NOT FOUND: {pdf_file}", "error")
+                    continue
+                
+                file_size = os.path.getsize(pdf_file)
+                if file_size == 0:
+                    self.log(f"  [{idx}] ✗ EMPTY FILE: {pdf_file}", "error")
+                    continue
+                
+                try:
                     reader = PdfReader(pdf_file)
-                    for page in reader.pages:
-                        writer.add_page(page)
-                    self.log(f"  Added {pdf_file}", "info")
+                    num_pages = len(reader.pages)
+                    
+                    if num_pages == 0:
+                        self.log(f"  [{idx}] ✗ NO PAGES: {pdf_file}", "error")
+                        continue
+                    
+                    if num_pages != 1:
+                        self.log(f"  [{idx}] ⚠️ MULTIPLE PAGES ({num_pages}): {pdf_file}", "warning")
+                    
+                    valid_pdfs.append((pdf_file, num_pages))
+                    self.log(f"  [{idx}] ✓ Valid: {pdf_file} ({num_pages} page)", "success")
+                    
+                except Exception as e:
+                    self.log(f"  [{idx}] ✗ ERROR READING: {pdf_file} - {str(e)}", "error")
             
+            if not valid_pdfs:
+                raise Exception("No valid PDFs to merge!")
+            
+            self.log(f"Pre-validation complete: {len(valid_pdfs)}/{len(pdf_files)} PDFs are valid", "info")
+            self.log("=" * 60, "info")
+            
+            # Step 2: Create writer and merge PDFs one by one with tracking
+            self.log("Step 2: Merging PDFs...", "info")
+            writer = PdfWriter()
+            merge_log = []
+            merge_tracking = {}  # Track which source file goes to which master page
+            
+            for idx, (pdf_file, expected_pages) in enumerate(valid_pdfs, 1):
+                try:
+                    # Get file hash for verification
+                    import hashlib
+                    with open(pdf_file, 'rb') as f:
+                        file_hash = hashlib.md5(f.read()).hexdigest()[:8]
+                    
+                    # Re-open the PDF (don't reuse readers)
+                    reader = PdfReader(pdf_file)
+                    num_pages = len(reader.pages)
+                    
+                    # Double-check page count
+                    if num_pages != expected_pages:
+                        raise Exception(f"Page count changed: was {expected_pages}, now {num_pages}")
+                    
+                    if num_pages == 0:
+                        raise Exception("PDF became empty")
+                    
+                    # Get the first (and ideally only) page
+                    page = reader.pages[0]
+                    
+                    # Track current writer state before adding
+                    pages_before = len(writer.pages)
+                    
+                    # Add the page
+                    writer.add_page(page)
+                    
+                    # Verify the page was added
+                    pages_after = len(writer.pages)
+                    if pages_after != pages_before + 1:
+                        raise Exception(f"Failed to add page: before={pages_before}, after={pages_after}")
+                    
+                    # Track this merge with hash
+                    master_page_num = pages_after
+                    merge_tracking[master_page_num] = {
+                        'source': pdf_file,
+                        'hash': file_hash,
+                        'source_idx': idx
+                    }
+                    
+                    # Log successful merge with hash
+                    merge_info = f"[{idx}/{len(valid_pdfs)}] {os.path.basename(pdf_file)} [hash:{file_hash}] → Master page {pages_after}"
+                    self.log(f"  ✓ {merge_info}", "success")
+                    merge_log.append(merge_info)
+                    
+                    if num_pages > 1:
+                        self.log(f"      Note: Source had {num_pages} pages, used page 1 only", "info")
+                    
+                except Exception as e:
+                    self.log(f"  ✗ [{idx}/{len(valid_pdfs)}] Failed to merge {pdf_file}: {str(e)}", "error")
+                    # Continue with other PDFs instead of failing completely
+            
+            final_page_count = len(writer.pages)
+            self.log("=" * 60, "info")
+            self.log(f"Merge complete: {final_page_count} total pages in writer", "info")
+            
+            # Check for duplicate sources (same file added twice)
+            self.log("Checking for duplicate sources...", "info")
+            hash_to_pages = {}
+            for page_num, info in merge_tracking.items():
+                file_hash = info['hash']
+                if file_hash not in hash_to_pages:
+                    hash_to_pages[file_hash] = []
+                hash_to_pages[file_hash].append((page_num, info['source']))
+            
+            duplicates_found = False
+            for file_hash, pages in hash_to_pages.items():
+                if len(pages) > 1:
+                    duplicates_found = True
+                    self.log(f"⚠️⚠️⚠️ DUPLICATE CONTENT [hash:{file_hash}]:", "error")
+                    for page_num, source in pages:
+                        self.log(f"    Master page {page_num} from {source}", "error")
+            
+            if not duplicates_found:
+                self.log("✓ No duplicate sources detected - all master pages are unique", "success")
+            
+            # Step 3: Write the master PDF
+            self.log("Step 3: Writing master PDF to disk...", "info")
             with open(output_path, 'wb') as output_file:
                 writer.write(output_file)
             
-            self.log(f"✓ Master PDF created: {output_path}", "success")
+            # Step 4: Verify the written file
+            self.log("Step 4: Verifying written master PDF...", "info")
+            
+            if not os.path.exists(output_path):
+                raise Exception("Master PDF was not created!")
+            
+            output_size = os.path.getsize(output_path)
+            if output_size == 0:
+                raise Exception("Master PDF is empty!")
+            
+            verify_reader = PdfReader(output_path)
+            actual_pages = len(verify_reader.pages)
+            
+            self.log(f"  File size: {output_size:,} bytes", "info")
+            self.log(f"  Pages: {actual_pages}", "info")
+            
+            # Step 5: Final validation
+            if actual_pages != final_page_count:
+                raise Exception(f"Page count mismatch! Expected {final_page_count}, got {actual_pages}")
+            
+            if actual_pages != len(valid_pdfs):
+                self.log(f"  ⚠️ Warning: Merged {len(valid_pdfs)} PDFs but got {actual_pages} pages", "warning")
+            
+            self.log("=" * 60, "info")
+            self.log(f"✓ Master PDF created successfully: {output_path}", "success")
+            self.log(f"✓ Verified: {actual_pages} pages (from {len(valid_pdfs)} source PDFs)", "success")
+            
             return True
             
         except Exception as e:
-            self.log(f"Error merging PDFs: {str(e)}", "error")
+            self.log(f"✗ Error merging PDFs: {str(e)}", "error")
+            import traceback
+            self.log(traceback.format_exc(), "error")
             return False
             
     def clear_all(self):
@@ -2303,8 +2851,83 @@ Stitch for Sophia"""
         thread.daemon = True
         thread.start()
         
+    def format_with_ai_stage1(self, raw_text, use_reasoning=True):
+        """STAGE 1: Format raw order text into simple character-name pairs"""
+        model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
+        
+        prompt = f"""You are extracting character and name pairs from Disney magnet order text.
+
+Your job is to format raw order data into a simple, clean list.
+
+IMPORTANT RULES:
+1. Extract ONLY character-name pairs (one per line)
+2. Format EXACTLY as: "Character description - name: PersonName"
+3. IGNORE boat orders completely - we don't process boats
+4. BUT if a line has BOTH a boat AND regular character orders, extract the regular characters
+5. A single order line can have 1-5 character-name pairs (plus possibly a boat to ignore)
+6. Keep character descriptions simple and natural (e.g., "Luke Skywalker", "Stitch captain", "Minnie Spiderman")
+7. Preserve exact name spellings from the order
+
+EXAMPLES:
+
+Input: "Item: Captain Mickey, Personalization: Johnny"
+Output: Mickey captain - name: Johnny
+
+Input: "Item: Christmas Elsa\nPersonalization: Sarah"
+Output: Elsa captain - name: Sarah
+
+Input: "Order has boat + Captain Minnie for 'Katie' and Captain Woody for 'Sean'"
+Output: 
+Minnie captain - name: Katie
+Woody captain - name: Sean
+
+Input: "1. Dory Captain - Joni  2. Ariel Captain - Gracie  3. Rapunzel Captain - Lila"
+Output:
+Dory captain - name: Joni
+Ariel captain - name: Gracie
+Rapunzel captain - name: Lila
+
+Now process this order text:
+{raw_text}
+
+OUTPUT FORMAT: Return ONLY the formatted lines, one per line, no explanations, no markdown, just the text:"""
+        
+        headers = {
+            "Authorization": f"Bearer {GROK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 2000
+        }
+        
+        try:
+            self.root.after(0, lambda: self.log("Stage 1: Sending formatting request to Grok AI...", "info"))
+            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=60)
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content'].strip()
+            
+            # Clean up the response - remove markdown code blocks if present
+            if content.startswith('```'):
+                lines = content.split('\n')
+                content = '\n'.join(line for line in lines if not line.startswith('```'))
+                content = content.strip()
+            
+            self.root.after(0, lambda: self.log(f"Stage 1: Received formatted text ({len(content.split(chr(10)))} lines)", "info"))
+            return content
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.root.after(0, lambda msg=error_msg: self.log(f"Stage 1 Error: {msg}", "error"))
+            return None
+    
     def parse_with_ai_thread(self, raw_text, use_reasoning=True):
-        """Parse with AI in background thread"""
+        """Parse with AI in background thread - 2-STAGE SYSTEM"""
         try:
             self.ai_processing = True
             # Disable both AI buttons
@@ -2313,15 +2936,34 @@ Stitch for Sophia"""
             
             model_type = "reasoning" if use_reasoning else "quick"
             self.root.after(0, lambda: self.status_text.set(f"AI is parsing your order ({model_type})..."))
-            self.root.after(0, lambda: self.log(f"Calling Grok AI ({model_type} model) with {len(self.image_list)} available images...", "info"))
             
-            # Call Grok API with reasoning parameter
-            result = self.call_grok_api(self.image_list, raw_text, use_reasoning)
+            # === STAGE 1: Format the raw text into simple character-name format ===
+            self.root.after(0, lambda: self.log(f"STAGE 1: Formatting raw order text...", "info"))
+            formatted_text = self.format_with_ai_stage1(raw_text, use_reasoning)
+            
+            if not formatted_text:
+                self.root.after(0, lambda: messagebox.showerror("AI Error", "Stage 1: Failed to format orders. Check the log for details."))
+                self.root.after(0, lambda: self.log("Stage 1 formatting failed", "error"))
+                return
+            
+            self.root.after(0, lambda: self.log(f"STAGE 1 Complete: Formatted text ready", "success"))
+            self.root.after(0, lambda ft=formatted_text: self.log(f"Formatted output:\n{ft}", "info"))
+            
+            # Update the AI input field with Stage 1 formatted text
+            self.root.after(0, lambda: self.raw_text.delete(1.0, tk.END))
+            self.root.after(0, lambda ft=formatted_text: self.raw_text.insert(1.0, ft))
+            self.root.after(0, lambda: self.raw_text.config(fg="black"))
+            
+            # === STAGE 2: Parse the formatted text to match images ===
+            self.root.after(0, lambda: self.log(f"STAGE 2: Matching to images with {len(self.image_list)} available images...", "info"))
+            result = self.call_grok_api(self.image_list, formatted_text, use_reasoning)
             
             if not result:
-                self.root.after(0, lambda: messagebox.showerror("AI Error", "Failed to parse orders. Check the log for details."))
-                self.root.after(0, lambda: self.log("AI parsing failed", "error"))
+                self.root.after(0, lambda: messagebox.showerror("AI Error", "Stage 2: Failed to match images. Check the log for details."))
+                self.root.after(0, lambda: self.log("Stage 2 image matching failed", "error"))
                 return
+            
+            self.root.after(0, lambda: self.log(f"STAGE 2 Complete: Matched images", "success"))
             
             # Convert result to simple format - PRESERVE UNMATCHED ITEMS
             orders = []
@@ -2375,11 +3017,13 @@ Stitch for Sophia"""
             
             # Show appropriate message based on matches
             if unmatched_count > 0:
-                self.root.after(0, lambda: self.log(f"✓ AI parsed {len(orders)} orders ({unmatched_count} need image selection)", "warning"))
+                self.root.after(0, lambda: self.log(f"✓ 2-Stage AI Complete: {len(orders)} orders ({unmatched_count} need image selection)", "warning"))
                 self.root.after(0, lambda: self.status_text.set(f"✓ AI found {len(orders)} orders - {unmatched_count} need image selection"))
                 self.root.after(0, lambda um=unmatched_count, tot=len(orders): messagebox.showwarning(
                     "Partial Match",
-                    f"AI parsed {tot} orders!\n\n"
+                    f"2-Stage AI Processing Complete!\n\n"
+                    f"✓ Stage 1: Formatted {tot} orders\n"
+                    f"✓ Stage 2: Matched images\n\n"
                     f"⚠️ {um} item{'s' if um != 1 else ''} couldn't be matched to images.\n"
                     f"They are marked as 'IMAGE-NOT-FOUND'.\n\n"
                     f"In the preview window, you can search and select\n"
@@ -2387,14 +3031,14 @@ Stitch for Sophia"""
                     f"Click 'Preview Orders' to review and fix."
                 ))
             else:
-                self.root.after(0, lambda: self.log(f"✓ AI parsed {len(orders)} orders successfully!", "success"))
+                self.root.after(0, lambda: self.log(f"✓ 2-Stage AI Complete: {len(orders)} orders successfully parsed!", "success"))
                 self.root.after(0, lambda: self.status_text.set(f"✓ AI found {len(orders)} orders! Review and click Process."))
-                self.root.after(0, lambda tot=len(orders): messagebox.showinfo("Success!", f"AI parsed {tot} orders!\n\nAll images matched successfully.\n\nReview and click 'Process Orders' when ready."))
+                self.root.after(0, lambda tot=len(orders): messagebox.showinfo("Success!", f"2-Stage AI Processing Complete!\n\n✓ Stage 1: Formatted {tot} orders\n✓ Stage 2: All images matched\n\nReview and click 'Process Orders' when ready."))
             
         except Exception as e:
             error_msg = str(e)
-            self.root.after(0, lambda msg=error_msg: self.log(f"AI Error: {msg}", "error"))
-            self.root.after(0, lambda msg=error_msg: messagebox.showerror("Error", f"AI parsing failed:\n{msg}"))
+            self.root.after(0, lambda msg=error_msg: self.log(f"2-Stage AI Error: {msg}", "error"))
+            self.root.after(0, lambda msg=error_msg: messagebox.showerror("Error", f"2-Stage AI parsing failed:\n{msg}"))
             
         finally:
             self.ai_processing = False
@@ -2403,7 +3047,7 @@ Stitch for Sophia"""
             self.root.after(0, lambda: self.quick_parse_btn.config(state=tk.NORMAL, text="⚡ Quick Parse"))
             
     def call_grok_api(self, image_list, order_text, use_reasoning=True):
-        """Call Grok API to parse order text"""
+        """STAGE 2: Call Grok API to match formatted orders to images"""
         # Format the complete list of available images
         # Send ALL images so AI can choose from exact matches
         images_formatted = '\n'.join(f"  - {img}" for img in image_list)
@@ -2411,50 +3055,60 @@ Stitch for Sophia"""
         # Choose model based on use_reasoning
         model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
         
-        prompt = f"""You are parsing Disney-themed magnet orders. Convert the order text into a simple character-name format.
+        prompt = f"""You are matching Disney character descriptions to exact image filenames.
 
-IMPORTANT: You MUST select from this EXACT list of available images. Do NOT guess or make up names.
+You will receive pre-formatted order text in this format:
+"Character description - name: PersonName"
+
+Your job is to match each character description to an EXACT image filename from the available list.
 
 COMPLETE LIST OF AVAILABLE IMAGES ({len(image_list)} total):
 {images_formatted}
 
-Order text to parse:
+Pre-formatted order text:
 {order_text}
 
-INSTRUCTIONS:
-1. Find all personalization names in the order text
-2. For each name, identify which Disney character is requested
-3. Match to an EXACT filename from the available images list above
-4. You MUST use filenames EXACTLY as shown (including .png extension)
-5. **CRITICAL: If you cannot find a match, use "N/A.png" as the image - DO NOT skip the item!**
-6. If theme is unclear, prefer "-captain" variants over others
-7. Common patterns: charactername-captain, charactername-christmas, charactername-pirate, charactername-witch
-8. IMPORTANT: Multiple orders can have the SAME personalization name (e.g., two "Johnny" orders)
-9. **ALWAYS include ALL items found, even if you're not sure of the character match**
+MATCHING RULES:
+1. For each line, extract the character description and the name
+2. Match the character description to an EXACT filename from the list above
+3. You MUST use filenames EXACTLY as shown (including .png extension)
+4. **CRITICAL: If you cannot find a match, use "N/A.png" - DO NOT skip the item!**
+5. Common patterns to match:
+   - "Mickey captain" → "mickey-captain.png"
+   - "Stitch captain" → "stitch-captain.png"
+   - "Elsa christmas" → "elsa-christmas.png"
+   - "Minnie Spiderman" → "minnie-spiderman.png"
+   - "Donald Hulk" → "donald-hulk.png"
+6. Character names are case-insensitive for matching
+7. If theme/variant is unclear, prefer "-captain" variants
+8. ALWAYS include ALL items, even if no match found (use "N/A.png")
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
-  {{"name": "PersonName1", "image": "exact-filename.png", "item": "original item description"}},
-  {{"name": "PersonName2", "image": "exact-filename.png", "item": "original item description"}},
-  {{"name": "PersonName3", "image": "N/A.png", "item": "original item description"}}
+  {{"name": "PersonName1", "image": "exact-filename.png", "item": "original character description"}},
+  {{"name": "PersonName2", "image": "exact-filename.png", "item": "original character description"}},
+  {{"name": "PersonName3", "image": "N/A.png", "item": "original character description"}}
 ]
 
-The "item" field should contain the original item/character description from the order text.
+EXAMPLES:
 
-Example with unmatched item:
-Input: "Item: Captain Mickey\nPersonalization: Johnny\nItem: Christmas Elsa\nPersonalization: Sarah\nItem: SuperRareCharacter\nPersonalization: Mike"
+Input: "Mickey captain - name: Johnny"
+Output: [{{"name": "Johnny", "image": "mickey-captain.png", "item": "Mickey captain"}}]
+
+Input: "Stitch captain - name: Michael\nMinnie Spiderman - name: Cecile"
 Output: [
-  {{"name": "Johnny", "image": "mickey-captain.png", "item": "Captain Mickey"}},
-  {{"name": "Sarah", "image": "elsa-christmas.png", "item": "Christmas Elsa"}},
-  {{"name": "Mike", "image": "N/A.png", "item": "SuperRareCharacter"}}
+  {{"name": "Michael", "image": "stitch-captain.png", "item": "Stitch captain"}},
+  {{"name": "Cecile", "image": "minnie-spiderman.png", "item": "Minnie Spiderman"}}
 ]
+
+Input: "RareCharacter - name: Test"
+Output: [{{"name": "Test", "image": "N/A.png", "item": "RareCharacter"}}]
 
 CRITICAL: 
 - Only use filenames that EXACTLY match the list above
 - If no match found, use "N/A.png" - DO NOT OMIT THE ITEM
-- Return a LIST, not a dictionary, so duplicate names are preserved
-- Each order is a separate entry in the list
-- Include ALL items, even uncertain ones
+- Return a LIST, preserving order
+- Include ALL items from the input
 
 Return the list now:"""
         
@@ -3359,6 +4013,132 @@ Return the list now:"""
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save PDF:\n{str(e)}")
+    
+    def show_log_window(self):
+        """Show log in a separate window"""
+        log_window = tk.Toplevel(self.root)
+        log_window.title("📋 Processing Log")
+        log_window.geometry("900x600")
+        log_window.configure(bg="white")
+        
+        # Title
+        title_frame = tk.Frame(log_window, bg=self.accent_color, height=60)
+        title_frame.pack(fill=tk.X)
+        title_frame.pack_propagate(False)
+        
+        title_label = tk.Label(
+            title_frame,
+            text="📋 Processing Log",
+            font=("Segoe UI", 24, "bold"),
+            bg=self.accent_color,
+            fg="black"
+        )
+        title_label.pack(pady=15)
+        
+        # Log display
+        log_display = scrolledtext.ScrolledText(
+            log_window,
+            font=("Consolas", 12),
+            bg="#1e1e1e",
+            fg="#00ff00",  # Green text for better visibility
+            relief=tk.FLAT,
+            wrap=tk.WORD
+        )
+        log_display.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Copy log content
+        log_content = self.log_text.get(1.0, tk.END)
+        log_display.insert(1.0, log_content)
+        log_display.see(tk.END)  # Scroll to bottom
+        
+        # Make read-only
+        log_display.config(state=tk.DISABLED)
+        
+        # Enable mouse wheel scrolling on Mac
+        def on_log_win_scroll_mac(event):
+            try:
+                log_display.config(state=tk.NORMAL)
+                log_display.yview_scroll(int(-1*event.delta), "units")
+                log_display.config(state=tk.DISABLED)
+            except:
+                pass
+        
+        def on_log_win_scroll(event):
+            try:
+                if event.delta:
+                    log_display.config(state=tk.NORMAL)
+                    log_display.yview_scroll(int(-1*(event.delta/120)), "units")
+                    log_display.config(state=tk.DISABLED)
+            except:
+                pass
+        
+        if platform.system() == 'Darwin':  # macOS
+            log_display.bind("<MouseWheel>", on_log_win_scroll_mac)
+        else:  # Windows/Linux
+            log_display.bind("<MouseWheel>", on_log_win_scroll)
+        
+        # Button frame
+        btn_frame = tk.Frame(log_window, bg="white")
+        btn_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+        
+        # Refresh button
+        def refresh_log():
+            log_display.config(state=tk.NORMAL)
+            log_display.delete(1.0, tk.END)
+            log_content = self.log_text.get(1.0, tk.END)
+            log_display.insert(1.0, log_content)
+            log_display.see(tk.END)
+            log_display.config(state=tk.DISABLED)
+        
+        refresh_btn = tk.Button(
+            btn_frame,
+            text="🔄 Refresh",
+            command=refresh_log,
+            font=("Segoe UI", 14, "bold"),
+            bg=self.accent_color,
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=8,
+            cursor="hand2"
+        )
+        refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Copy button
+        def copy_log():
+            log_content = self.log_text.get(1.0, tk.END)
+            log_window.clipboard_clear()
+            log_window.clipboard_append(log_content)
+            messagebox.showinfo("Copied", "Log copied to clipboard!")
+        
+        copy_btn = tk.Button(
+            btn_frame,
+            text="📋 Copy to Clipboard",
+            command=copy_log,
+            font=("Segoe UI", 14),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=8,
+            cursor="hand2"
+        )
+        copy_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Close button
+        close_btn = tk.Button(
+            btn_frame,
+            text="Close",
+            command=log_window.destroy,
+            font=("Segoe UI", 14),
+            bg="#6c757d",
+            fg="black",
+            relief=tk.FLAT,
+            padx=20,
+            pady=8,
+            cursor="hand2"
+        )
+        close_btn.pack(side=tk.RIGHT)
     
     def show_help(self):
         """Show help dialog"""

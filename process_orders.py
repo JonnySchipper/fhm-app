@@ -12,7 +12,7 @@ import shutil
 import time
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-from PyPDF2 import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 
 
 # ============================================================================
@@ -324,7 +324,7 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     img_page1.add_transformation((target_scale, 0, 0, target_scale, tx1, ty1))
     img_page2.add_transformation((target_scale, 0, 0, target_scale, tx2, ty2))
     
-    # Use original working approach: get target page, merge both images, then add all pages
+    # Use original working approach: get target page, merge both images
     original_page = reader.pages[target]
     original_page.merge_page(img_page2)
     original_page.merge_page(img_page1)
@@ -332,9 +332,12 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     # Create writer
     writer = PdfWriter()
     
-    # Add all pages (with the modified target page)
-    for page in reader.pages:
-        writer.add_page(page)
+    # CRITICAL: Add ONLY the single modified target page (not all pages - that causes duplicates!)
+    writer.add_page(original_page)
+    
+    # VERIFY: Check that writer has exactly 1 page before writing
+    if len(writer.pages) != 1:
+        raise RuntimeError(f"Writer should have exactly 1 page, but has {len(writer.pages)}")
     
     # Write to output
     with open(output_pdf, "wb") as out_file:
@@ -348,12 +351,18 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     if output_size == 0:
         raise RuntimeError(f"Output PDF is empty: {output_pdf}")
     
-    # Verify output PDF can be read
+    # Verify output PDF can be read and has EXACTLY 1 page
     try:
         verification_reader = PdfReader(output_pdf)
-        if len(verification_reader.pages) == 0:
+        page_count = len(verification_reader.pages)
+        
+        if page_count == 0:
             raise RuntimeError(f"Output PDF has no pages: {output_pdf}")
-        print(f"  ✓ Output PDF validated: {len(verification_reader.pages)} pages, {output_size} bytes")
+        
+        if page_count != 1:
+            raise RuntimeError(f"Output PDF should have exactly 1 page, but has {page_count}: {output_pdf}")
+        
+        print(f"  ✓ Output PDF validated: {page_count} page, {output_size} bytes")
     except Exception as e:
         raise RuntimeError(f"Output PDF validation failed: {output_pdf} - {e}")
     
