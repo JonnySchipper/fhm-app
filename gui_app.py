@@ -2862,7 +2862,7 @@ Your job is to format raw order data into a simple, clean list.
 IMPORTANT RULES:
 1. Extract ONLY character-name pairs (one per line)
 2. Format EXACTLY as: "Character description - name: PersonName"
-3. IGNORE boat orders completely - we don't process boats
+3. IGNORE boat magnets completely. But do the other magnets in the order. For boat orders, assume the theme is captain.
 4. BUT if a line has BOTH a boat AND regular character orders, extract the regular characters
 5. A single order line can have 1-5 character-name pairs (plus possibly a boat to ignore)
 6. Keep character descriptions simple and natural (e.g., "Luke Skywalker", "Stitch captain", "Minnie Spiderman")
