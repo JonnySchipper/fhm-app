@@ -2870,6 +2870,7 @@ IMPORTANT RULES:
 8. If no name is specified for a character, use "no name" for the name
 9. Duck and dog orders do not need captain, pirate, etc. Just duck/dog and the ID number with them. 
 10. Do not omit any items from the order other than boats.
+11. The header for an order can determine the theme. For example, if the header is pirate, every item in that order is pirate. Same with captain, christmas, etc.
 
 EXAMPLES:
 
@@ -3087,6 +3088,7 @@ MATCHING RULES:
    - "duck 23" → "duck-23.png"
 6. Character names are case-insensitive for matching
 7. ALWAYS include ALL items, even if no match found (use "N/A.png")
+8. for magnets with no name, leave it blank. (example "name": "")
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
