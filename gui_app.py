@@ -2867,6 +2867,9 @@ IMPORTANT RULES:
 5. A single order line can have 1-5 character-name pairs (plus possibly a boat to ignore)
 6. Keep character descriptions simple and natural (e.g., "Luke Skywalker", "Stitch captain", "Minnie Spiderman")
 7. Preserve exact name spellings from the order
+8. If no name is specified for a character, use "no name" for the name
+9. Duck and dog orders do not need captain, pirate, etc. Just duck/dog and the ID number with them. 
+10. Do not omit any items from the order other than boats.
 
 EXAMPLES:
 
@@ -2874,17 +2877,18 @@ Input: "Item: Captain Mickey, Personalization: Johnny"
 Output: Mickey captain - name: Johnny
 
 Input: "Item: Christmas Elsa\nPersonalization: Sarah"
-Output: Elsa captain - name: Sarah
+Output: Elsa christmas - name: Sarah
 
-Input: "Order has boat + Captain Minnie for 'Katie' and Captain Woody for 'Sean'"
+Input: "captain Order has boat +  Minnie for 'Katie' and  Woody for 'Sean' and dog 16 for 'Joni'"
 Output: 
 Minnie captain - name: Katie
 Woody captain - name: Sean
+dog 16 - name: Joni
 
-Input: "1. Dory Captain - Joni  2. Ariel Captain - Gracie  3. Rapunzel Captain - Lila"
+Input: "1. Dory Captain - Joni  2. Ariel pirate - Gracie  3. Rapunzel Captain - Lila"
 Output:
 Dory captain - name: Joni
-Ariel captain - name: Gracie
+Ariel pirate - name: Gracie
 Rapunzel captain - name: Lila
 
 Now process this order text:
@@ -3079,9 +3083,10 @@ MATCHING RULES:
    - "Elsa christmas" → "elsa-christmas.png"
    - "Minnie Spiderman" → "minnie-spiderman.png"
    - "Donald Hulk" → "donald-hulk.png"
+   - "dog 16" → "dog-16.png"
+   - "duck 23" → "duck-23.png"
 6. Character names are case-insensitive for matching
-7. If theme/variant is unclear, prefer "-captain" variants
-8. ALWAYS include ALL items, even if no match found (use "N/A.png")
+7. ALWAYS include ALL items, even if no match found (use "N/A.png")
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
