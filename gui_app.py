@@ -2870,7 +2870,7 @@ IMPORTANT RULES:
 8. If no name is specified for a character, use "no name" for the name
 9. Duck and dog orders do not need captain, pirate, etc. Just duck/dog and the ID number with them. 
 10. Do not omit any items from the order other than boats.
-11. The header for an order can determine the theme. For example, if the header is pirate, every item in that order is pirate. Same with captain, christmas, etc.
+11. The header for an order determines the theme. For example, if the header is pirate, every item in that order is pirate. Same with captain, christmas, etc. If the order is boat, assume captain theme.
 
 EXAMPLES:
 
@@ -3083,6 +3083,7 @@ MATCHING RULES:
    - "Stitch captain" → "stitch-captain.png"
    - "Elsa christmas" → "elsa-christmas.png"
    - "Minnie Spiderman" → "minnie-spiderman.png"
+   - "Minnie pirate" → "minnie-pirate.png"
    - "Donald Hulk" → "donald-hulk.png"
    - "dog 16" → "dog-16.png"
    - "duck 23" → "duck-23.png"
@@ -3094,7 +3095,7 @@ OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
   {{"name": "PersonName1", "image": "exact-filename.png", "item": "original character description"}},
   {{"name": "PersonName2", "image": "exact-filename.png", "item": "original character description"}},
-  {{"name": "PersonName3", "image": "N/A.png", "item": "original character description"}}
+  {{"name": "", "image": "N/A.png", "item": "original character description"}}
 ]
 
 EXAMPLES:
@@ -3102,9 +3103,9 @@ EXAMPLES:
 Input: "Mickey captain - name: Johnny"
 Output: [{{"name": "Johnny", "image": "mickey-captain.png", "item": "Mickey captain"}}]
 
-Input: "Stitch captain - name: Michael\nMinnie Spiderman - name: Cecile"
+Input: "Stitch pirate - name: Michael\nMinnie Spiderman - name: Cecile"
 Output: [
-  {{"name": "Michael", "image": "stitch-captain.png", "item": "Stitch captain"}},
+  {{"name": "Michael", "image": "stitch-pirate.png", "item": "Stitch pirate"}},
   {{"name": "Cecile", "image": "minnie-spiderman.png", "item": "Minnie Spiderman"}}
 ]
 
