@@ -37,6 +37,36 @@ FONT_FALLBACK = "font/waltograph42.otf"
 
 
 # ============================================================================
+# BOAT CONFIGURATION (EDIT THESE TO FINE-TUNE TEXT & PDF PLACEMENT)
+# ============================================================================
+
+# Boat images folder (in same directory as this script)
+BOATS_DIR = "boats"
+BOAT_TEMPLATE_PDF = "boat_format.pdf"
+
+# Text positioning for boats (frown curve - center below text)
+BOAT_TEXT_CENTER = (950, 4220)     # (X, Y) center BELOW text = frown curve
+BOAT_TEXT_RADIUS = 2700            # Arc radius in pixels - larger = flatter curve
+BOAT_TEXT_ANGLE = 90               # Angle in degrees (90 = centered at top of arc)
+BOAT_TEXT_OUTWARD = True           # True = text faces outward from arc center
+BOAT_TEXT_KERNING = 1.2            # Letter spacing
+
+# === NAME LENGTH SCALING - Adjusts text for different name lengths ===
+BOAT_TEXT_REFERENCE_LENGTH = 16    # Reference: "The Smith Family" = 16 chars
+BOAT_TEXT_BASE_FONT_SIZE = 120     # Base font size (for reference length name)
+BOAT_TEXT_FONT_SCALE_PER_CHAR = 4  # Decrease font by this per extra char
+BOAT_TEXT_MIN_FONT_SIZE = 60       # Minimum font size limit
+BOAT_TEXT_MAX_FONT_SIZE = 180      # Maximum font size limit
+BOAT_TEXT_RADIUS_SCALE_PER_CHAR = 50   # Increase radius per extra char
+BOAT_TEXT_Y_SCALE_PER_CHAR = 50    # Adjust Y position per extra char
+
+# Boat PDF positioning (single centered image on boat_format.pdf)
+BOAT_PDF_X = -9                    # X position on PDF
+BOAT_PDF_Y = 80                    # Y position on PDF
+BOAT_PDF_SCALE = 1.41              # Scale factor for image size
+
+
+# ============================================================================
 # TEXT RENDERING FUNCTIONS (from add_names.py)
 # ============================================================================
 
@@ -155,6 +185,89 @@ def draw_text_on_arc(
     return base_img
 
 
+def draw_boat_text_on_arc(
+    base_img: Image.Image,
+    text: str,
+    *,
+    center: tuple,
+    radius: float,
+    font_path: str,
+    font_size: int = 80,
+    fill=(255, 255, 255, 255),
+    angle_deg: float = 180.0,
+    outward: bool = True,
+    kerning: float = 0.0,
+    stroke_width: int = 0,
+    stroke_fill=None,
+):
+    """Render text along a circular arc - SIMPLIFIED for boats (symmetric curve)."""
+    
+    # Load font robustly
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except OSError:
+        try:
+            font = ImageFont.truetype(FONT_FALLBACK, font_size)
+        except OSError:
+            font = ImageFont.load_default()
+
+    cx, cy = center
+
+    # Measure total advance
+    advances = [_glyph_advance(font, ch) + (kerning if i < len(text)-1 else 0)
+                for i, ch in enumerate(text)]
+    text_width = sum(advances)
+    if radius <= 0:
+        raise ValueError("radius must be > 0")
+
+    # Angular span - SIMPLIFIED: no adjustments, perfectly symmetric
+    theta_total = text_width / float(radius)
+    theta_center = math.radians(angle_deg)
+    theta_start = theta_center - theta_total / 2.0
+
+    # Place each glyph - SIMPLIFIED: constant radius for all letters
+    s_cum = 0.0
+    for i, ch in enumerate(text):
+        adv = advances[i]
+        s_mid = s_cum + adv / 2.0
+        theta = theta_start + (s_mid / radius)
+
+        x = cx + radius * math.cos(theta)
+        y = cy - radius * math.sin(theta)
+
+        rot_deg = math.degrees(theta) - (90 if outward else -90)
+
+        glyph_img = _render_glyph_rgba(font, ch, fill, stroke_width, stroke_fill)
+        glyph_rot = glyph_img.rotate(rot_deg, resample=Image.BICUBIC, expand=True)
+
+        gw, gh = glyph_rot.size
+        paste_xy = (int(x - gw / 2), int(y - gh / 2))
+        base_img.alpha_composite(glyph_rot, dest=paste_xy)
+
+        s_cum += adv
+
+    return base_img
+
+
+def calculate_boat_text_settings(name):
+    """Calculate font size, radius, and position based on name length."""
+    name_length = len(name)
+    length_diff = name_length - BOAT_TEXT_REFERENCE_LENGTH
+    
+    # Calculate scaled font size
+    font_size = BOAT_TEXT_BASE_FONT_SIZE - (length_diff * BOAT_TEXT_FONT_SCALE_PER_CHAR)
+    font_size = max(BOAT_TEXT_MIN_FONT_SIZE, min(BOAT_TEXT_MAX_FONT_SIZE, font_size))
+    
+    # Calculate scaled radius
+    radius = BOAT_TEXT_RADIUS + (length_diff * BOAT_TEXT_RADIUS_SCALE_PER_CHAR)
+    
+    # Calculate scaled Y position
+    center_x, center_y = BOAT_TEXT_CENTER
+    center_y = center_y + (length_diff * BOAT_TEXT_Y_SCALE_PER_CHAR)
+    
+    return font_size, radius, (center_x, center_y)
+
+
 def create_personalized_image(name, image_path, output_path):
     """
     Create a personalized image by adding curved text to the base image.
@@ -222,6 +335,81 @@ def create_personalized_image(name, image_path, output_path):
     else:
         print(f"  ✗ ERROR: Failed to save {output_path}")
         raise RuntimeError(f"Image file not properly created: {output_path}")
+    
+    return output_path
+
+
+def create_personalized_boat_image(name, image_path, output_path):
+    """
+    Create a personalized boat image by adding curved text.
+    Uses configurable parameters from BOAT_TEXT_* constants at top of file.
+    Automatically scales font size and curve based on name length.
+    
+    Args:
+        name: Personalization name (can be empty string for no text)
+        image_path: Path to the source boat image
+        output_path: Where to save the personalized image
+    """
+    
+    # If no name, just copy the original image
+    if not name or name.strip() == "":
+        print(f"  Creating boat image without text for {os.path.basename(image_path)}")
+        shutil.copy2(image_path, output_path)
+        
+        # Small delay to ensure file is copied
+        time.sleep(0.05)
+        
+        # Verify copy
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            raise RuntimeError(f"Failed to copy boat image: {output_path}")
+        
+        return output_path
+    
+    print(f"  Adding text '{name}' to boat {os.path.basename(image_path)}")
+    print(f"    Name length: {len(name)} chars (reference: {BOAT_TEXT_REFERENCE_LENGTH})")
+    
+    # Calculate scaled settings based on name length
+    font_size, radius, center = calculate_boat_text_settings(name)
+    print(f"    Scaled font: {font_size}, radius: {radius}, center Y: {center[1]}")
+    
+    # Use Waltograph font for boats
+    font_path = FONT_WALTOGRAPH
+    
+    # Open and convert image
+    img = Image.open(image_path).convert("RGBA")
+    
+    # Add curved text using boat-specific arc function
+    # Reverse the text so it reads correctly on the arc
+    draw_boat_text_on_arc(
+        img,
+        name[::-1],                        # Reverse the string for correct reading
+        center=center,                     # Scaled position
+        radius=radius,                     # Scaled arc radius
+        font_path=font_path,
+        font_size=font_size,               # Scaled font size
+        fill=(255, 255, 255, 255),         # White text
+        angle_deg=BOAT_TEXT_ANGLE,         # Angle for curve direction
+        outward=BOAT_TEXT_OUTWARD,         # Text orientation
+        kerning=BOAT_TEXT_KERNING,         # Letter spacing
+        stroke_width=0,
+        stroke_fill=(255, 255, 255, 255),
+    )
+    
+    # Save with proper file handling
+    output_img = img.convert("RGBA")
+    output_img.save(output_path)
+    output_img.close()  # Explicitly close
+    img.close()  # Close original image too
+    
+    # Small delay to ensure file is written
+    time.sleep(0.05)
+    
+    # Verify file was created and has content
+    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+        print(f"  ✓ Saved boat image to {output_path}")
+    else:
+        print(f"  ✗ ERROR: Failed to save boat image {output_path}")
+        raise RuntimeError(f"Boat image file not properly created: {output_path}")
     
     return output_path
 
@@ -368,6 +556,105 @@ def create_pdf_with_images(input_pdf, image1, image2, output_pdf):
     return output_pdf
 
 
+def create_boat_pdf(input_pdf, boat_image, output_pdf):
+    """
+    Overlay a single boat image centered on a PDF template.
+    Uses configurable parameters from BOAT_PDF_* constants at top of file.
+    
+    Args:
+        input_pdf: Template PDF file path (boat_format.pdf)
+        boat_image: Path to the personalized boat image
+        output_pdf: Output PDF file path
+    """
+    
+    # Validation
+    if not os.path.exists(input_pdf):
+        raise FileNotFoundError(f"Boat template PDF not found: {input_pdf}")
+    if not os.path.exists(boat_image):
+        raise FileNotFoundError(f"Boat image not found: {boat_image}")
+    
+    # Validate image
+    try:
+        with Image.open(boat_image) as img_test:
+            if img_test.size[0] == 0 or img_test.size[1] == 0:
+                raise ValueError(f"Boat image has invalid dimensions: {boat_image}")
+    except Exception as e:
+        raise ValueError(f"Invalid boat image file: {e}")
+    
+    # Convert image to temporary PDF
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    temp_pdf = os.path.join(TEMP_DIR, "temp_boat.pdf")
+    
+    # Clean up any existing temp file first
+    if os.path.exists(temp_pdf):
+        os.remove(temp_pdf)
+    
+    png_to_pdf(boat_image, temp_pdf)
+    
+    # Verify temp PDF was created successfully
+    if not os.path.exists(temp_pdf) or os.path.getsize(temp_pdf) == 0:
+        raise RuntimeError(f"Failed to create valid temp PDF for boat image: {boat_image}")
+    print(f"  ✓ Temp boat PDF created successfully")
+    
+    # Read the existing PDF template
+    reader = PdfReader(input_pdf)
+    num_pages = len(reader.pages)
+    target = num_pages // 2
+    
+    # Read the image PDF
+    reader_img = PdfReader(temp_pdf)
+    img_page = reader_img.pages[0]
+    
+    # Use configurable positioning from constants
+    img_width = 500
+    target_scale = (img_width / 1500) * BOAT_PDF_SCALE
+    
+    # Apply transformation for centered boat image
+    # Transformation matrix: (a, b, c, d, e, f) where a=d=scale, e=x, f=y
+    img_page.add_transformation((target_scale, 0, 0, target_scale, BOAT_PDF_X, BOAT_PDF_Y))
+    
+    # Merge image onto target page
+    original_page = reader.pages[target]
+    original_page.merge_page(img_page)
+    
+    # Create writer
+    writer = PdfWriter()
+    
+    # Add all pages (with the modified target page)
+    for page in reader.pages:
+        writer.add_page(page)
+    
+    # Write to output
+    with open(output_pdf, "wb") as out_file:
+        writer.write(out_file)
+    
+    # Verify output PDF was created successfully
+    if not os.path.exists(output_pdf):
+        raise RuntimeError(f"Failed to create boat output PDF: {output_pdf}")
+    
+    output_size = os.path.getsize(output_pdf)
+    if output_size == 0:
+        raise RuntimeError(f"Boat output PDF is empty: {output_pdf}")
+    
+    # Verify output PDF can be read
+    try:
+        verification_reader = PdfReader(output_pdf)
+        if len(verification_reader.pages) == 0:
+            raise RuntimeError(f"Boat output PDF has no pages: {output_pdf}")
+        print(f"  ✓ Boat PDF validated: {len(verification_reader.pages)} pages, {output_size} bytes")
+    except Exception as e:
+        raise RuntimeError(f"Boat output PDF validation failed: {output_pdf} - {e}")
+    
+    # Clean up temporary files
+    try:
+        os.remove(temp_pdf)
+        print(f"  ✓ Temporary boat files cleaned up")
+    except Exception as e:
+        print(f"  Warning: Could not clean up temp boat files: {e}")
+    
+    return output_pdf
+
+
 # ============================================================================
 # CSV PROCESSING AND MAIN WORKFLOW
 # ============================================================================
@@ -442,22 +729,55 @@ def find_image_file(character_name):
     return None
 
 
+def find_boat_image_file(boat_name):
+    """
+    Find the image file for a boat in the boats folder.
+    
+    Args:
+        boat_name: Boat name without .png extension (e.g., 'boat_fantasy')
+        
+    Returns:
+        Full path to the boat image file, or None if not found
+    """
+    # Try exact match first
+    image_filename = f"{boat_name}.png"
+    image_path = os.path.join(BOATS_DIR, image_filename)
+    
+    if os.path.exists(image_path):
+        return image_path
+    
+    # Try case-insensitive match
+    if os.path.exists(BOATS_DIR):
+        for file in os.listdir(BOATS_DIR):
+            if file.lower() == image_filename.lower():
+                return os.path.join(BOATS_DIR, file)
+    
+    return None
+
+
+def is_boat_order(character_name):
+    """Check if an order is for a boat (starts with 'boat_')."""
+    return character_name.lower().startswith('boat_')
+
+
 def process_all_orders(csv_path):
     """
     Main processing function that reads CSV and generates all outputs.
+    Handles both magnet orders and boat orders.
     
     Steps:
     1. Read CSV with character-name pairs
-    2. Generate personalized images
-    3. Create PDFs with pairs of images
+    2. Separate magnet orders from boat orders
+    3. Generate personalized images (different processing for boats)
+    4. Create PDFs (pairs for magnets, single for boats)
     """
     
     print("\n" + "="*70)
-    print("DISNEY MAGNET ORDER PROCESSOR")
+    print("DISNEY MAGNET & BOAT ORDER PROCESSOR")
     print("="*70)
     
     # Validate inputs
-    print("\n[1/6] Validating inputs...")
+    print("\n[1/7] Validating inputs...")
     
     if not os.path.exists(csv_path):
         print(f"✗ ERROR: CSV file not found: {csv_path}")
@@ -472,25 +792,58 @@ def process_all_orders(csv_path):
         print(f"✗ ERROR: Template PDF not found: {TEMPLATE_PDF}")
         return False
     
+    # Check for boats folder (optional - only needed if boat orders exist)
+    boats_available = os.path.exists(BOATS_DIR)
+    boat_template_available = os.path.exists(BOAT_TEMPLATE_PDF)
+    
     print(f"✓ CSV file: {csv_path}")
     print(f"✓ Images folder: {IMAGES_DIR}")
     print(f"✓ Template PDF: {TEMPLATE_PDF}")
+    if boats_available:
+        print(f"✓ Boats folder: {BOATS_DIR}")
+    if boat_template_available:
+        print(f"✓ Boat template PDF: {BOAT_TEMPLATE_PDF}")
     
     # Read orders
-    print("\n[2/6] Reading orders from CSV...")
+    print("\n[2/7] Reading orders from CSV...")
     orders = read_csv_orders(csv_path)
     
     if not orders:
         print("✗ ERROR: No orders found in CSV file")
         return False
     
-    print(f"✓ Found {len(orders)} orders")
+    # Separate magnet orders from boat orders
+    magnet_orders = []
+    boat_orders = []
+    
+    for char, name in orders:
+        if is_boat_order(char):
+            boat_orders.append((char, name))
+        else:
+            magnet_orders.append((char, name))
+    
+    print(f"✓ Found {len(orders)} total orders:")
+    print(f"  • {len(magnet_orders)} magnet orders")
+    print(f"  • {len(boat_orders)} boat orders")
+    
     for i, (char, name) in enumerate(orders, 1):
         name_display = name if name else "(no personalization)"
-        print(f"  {i}. {char} → {name_display}")
+        order_type = "🚢 BOAT" if is_boat_order(char) else "🧲 MAGNET"
+        print(f"  {i}. [{order_type}] {char} → {name_display}")
+    
+    # Validate boat orders can be processed
+    if boat_orders:
+        if not boats_available:
+            print(f"⚠ WARNING: Boat orders found but boats folder not found: {BOATS_DIR}")
+            print(f"   Boat orders will be skipped")
+            boat_orders = []
+        elif not boat_template_available:
+            print(f"⚠ WARNING: Boat orders found but boat template not found: {BOAT_TEMPLATE_PDF}")
+            print(f"   Boat orders will be skipped")
+            boat_orders = []
     
     # Create output directory
-    print("\n[3/6] Preparing output directories...")
+    print("\n[3/7] Preparing output directories...")
     os.makedirs(OUTPUTS_DIR, exist_ok=True)
     
     # Clear previous outputs
@@ -500,13 +853,14 @@ def process_all_orders(csv_path):
     
     print(f"✓ Output directory ready: {OUTPUTS_DIR}")
     
-    # Generate personalized images
-    print("\n[4/6] Generating personalized images...")
+    # Generate personalized MAGNET images
+    print("\n[4/7] Generating personalized magnet images...")
     
-    generated_images = []
+    generated_magnet_images = []
+    magnet_img_counter = 1
     
-    for i, (character, name) in enumerate(orders, 1):
-        print(f"\nProcessing order {i}/{len(orders)}: {character}")
+    for i, (character, name) in enumerate(magnet_orders, 1):
+        print(f"\nProcessing magnet {i}/{len(magnet_orders)}: {character}")
         
         # Find source image
         source_image = find_image_file(character)
@@ -516,69 +870,147 @@ def process_all_orders(csv_path):
             continue
         
         # Generate output filename
-        output_filename = f"{i}.png"
+        output_filename = f"magnet_{magnet_img_counter}.png"
         output_path = os.path.join(OUTPUTS_DIR, output_filename)
         
         # Create personalized image
         try:
             create_personalized_image(name, source_image, output_path)
-            generated_images.append(output_path)
+            generated_magnet_images.append(output_path)
+            magnet_img_counter += 1
         except Exception as e:
-            print(f"  ✗ ERROR creating image: {e}")
+            print(f"  ✗ ERROR creating magnet image: {e}")
             import traceback
             traceback.print_exc()
     
-    if not generated_images:
+    if magnet_orders and not generated_magnet_images:
+        print("\n⚠ WARNING: No magnet images were generated successfully")
+    elif generated_magnet_images:
+        print(f"\n✓ Generated {len(generated_magnet_images)} personalized magnet images")
+    
+    # Generate personalized BOAT images
+    print("\n[5/7] Generating personalized boat images...")
+    
+    generated_boat_images = []
+    boat_img_counter = 1
+    
+    if boat_orders:
+        for i, (boat_type, name) in enumerate(boat_orders, 1):
+            print(f"\nProcessing boat {i}/{len(boat_orders)}: {boat_type}")
+            
+            # Find source boat image
+            source_image = find_boat_image_file(boat_type)
+            if not source_image:
+                print(f"  ✗ ERROR: Boat image not found for '{boat_type}'")
+                print(f"     Looking for: {boat_type}.png in {BOATS_DIR}")
+                continue
+            
+            # Generate output filename
+            output_filename = f"boat_{boat_img_counter}.png"
+            output_path = os.path.join(OUTPUTS_DIR, output_filename)
+            
+            # Create personalized boat image (opposite curve direction)
+            try:
+                create_personalized_boat_image(name, source_image, output_path)
+                generated_boat_images.append(output_path)
+                boat_img_counter += 1
+            except Exception as e:
+                print(f"  ✗ ERROR creating boat image: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        if boat_orders and not generated_boat_images:
+            print("\n⚠ WARNING: No boat images were generated successfully")
+        elif generated_boat_images:
+            print(f"\n✓ Generated {len(generated_boat_images)} personalized boat images")
+    else:
+        print("  No boat orders to process")
+    
+    # Check if we have any images at all
+    if not generated_magnet_images and not generated_boat_images:
         print("\n✗ ERROR: No images were generated successfully")
         return False
     
-    print(f"\n✓ Generated {len(generated_images)} personalized images")
+    # Create MAGNET PDFs (pairs)
+    print("\n[6/7] Creating magnet PDF outputs...")
     
-    # Create PDFs
-    print("\n[5/6] Creating PDF outputs...")
-    
-    pdf_count = 0
+    magnet_pdf_count = 0
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Process images in pairs
-    for i in range(0, len(generated_images), 2):
-        if i + 1 < len(generated_images):
-            # We have a pair
-            image1 = generated_images[i]
-            image2 = generated_images[i + 1]
+    if generated_magnet_images:
+        # Process magnet images in pairs
+        for i in range(0, len(generated_magnet_images), 2):
+            if i + 1 < len(generated_magnet_images):
+                # We have a pair
+                image1 = generated_magnet_images[i]
+                image2 = generated_magnet_images[i + 1]
+                
+                pdf_num = (i // 2) + 1
+                output_pdf = f"order_output_{timestamp}_{pdf_num}.pdf"
+                
+                print(f"\nCreating magnet PDF {pdf_num}:")
+                print(f"  Top: {os.path.basename(image1)}")
+                print(f"  Bottom: {os.path.basename(image2)}")
+                
+                try:
+                    create_pdf_with_images(TEMPLATE_PDF, image1, image2, output_pdf)
+                    print(f"  ✓ Saved to {output_pdf}")
+                    magnet_pdf_count += 1
+                    
+                except Exception as e:
+                    print(f"  ✗ ERROR creating magnet PDF: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                # Odd number of images - last one unpaired
+                print(f"\nNote: Magnet image {os.path.basename(generated_magnet_images[i])} has no pair")
+                print(f"      You can manually create a PDF using pdf.py if needed")
+    else:
+        print("  No magnet images to create PDFs from")
+    
+    # Create BOAT PDFs (single image each)
+    print("\n[6b/7] Creating boat PDF outputs...")
+    
+    boat_pdf_count = 0
+    
+    if generated_boat_images:
+        for i, boat_image in enumerate(generated_boat_images, 1):
+            output_pdf = f"boat_output_{timestamp}_{i}.pdf"
             
-            pdf_num = (i // 2) + 1
-            output_pdf = f"order_output_{timestamp}_{pdf_num}.pdf"
-            
-            print(f"\nCreating PDF {pdf_num}:")
-            print(f"  Top: {os.path.basename(image1)}")
-            print(f"  Bottom: {os.path.basename(image2)}")
+            print(f"\nCreating boat PDF {i}:")
+            print(f"  Image: {os.path.basename(boat_image)}")
             
             try:
-                create_pdf_with_images(TEMPLATE_PDF, image1, image2, output_pdf)
+                create_boat_pdf(BOAT_TEMPLATE_PDF, boat_image, output_pdf)
                 print(f"  ✓ Saved to {output_pdf}")
-                pdf_count += 1
+                boat_pdf_count += 1
                 
             except Exception as e:
-                print(f"  ✗ ERROR creating PDF: {e}")
+                print(f"  ✗ ERROR creating boat PDF: {e}")
                 import traceback
                 traceback.print_exc()
-        else:
-            # Odd number of images - last one unpaired
-            print(f"\nNote: Image {os.path.basename(generated_images[i])} has no pair")
-            print(f"      You can manually create a PDF using pdf.py if needed")
+    else:
+        print("  No boat images to create PDFs from")
     
     # Summary
-    print("\n[6/6] Processing complete!")
+    print("\n[7/7] Processing complete!")
     print("\n" + "="*70)
     print("SUMMARY")
     print("="*70)
-    print(f"Orders processed: {len(orders)}")
-    print(f"Images generated: {len(generated_images)}")
-    print(f"PDFs created: {pdf_count}")
+    print(f"Total orders processed: {len(orders)}")
+    print(f"  • Magnet orders: {len(magnet_orders)}")
+    print(f"  • Boat orders: {len(boat_orders)}")
+    print(f"\nImages generated:")
+    print(f"  • Magnet images: {len(generated_magnet_images)}")
+    print(f"  • Boat images: {len(generated_boat_images)}")
+    print(f"\nPDFs created:")
+    print(f"  • Magnet PDFs: {magnet_pdf_count}")
+    print(f"  • Boat PDFs: {boat_pdf_count}")
     print(f"\nPersonalized images saved to: {OUTPUTS_DIR}/")
-    if pdf_count > 0:
-        print(f"PDF files saved to current directory: order_output_{timestamp}_*.pdf")
+    if magnet_pdf_count > 0:
+        print(f"Magnet PDFs saved to: order_output_{timestamp}_*.pdf")
+    if boat_pdf_count > 0:
+        print(f"Boat PDFs saved to: boat_output_{timestamp}_*.pdf")
     print("="*70 + "\n")
     
     return True

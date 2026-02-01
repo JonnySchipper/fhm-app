@@ -765,11 +765,20 @@ pluto-captain,Sophia"""
                 messagebox.showwarning("Images Not Found", "Cannot find fhm_images folder.")
                 return
         
-        # Get all available images
+        # Get boats directory
+        boats_dir = "boats"
+        
+        # Get all available images (characters + boats)
         available_images = []
         for file in sorted(os.listdir(images_dir)):
             if file.lower().endswith('.png'):
                 available_images.append(file.replace('.png', ''))
+        
+        # Add boat images if boats folder exists
+        if os.path.exists(boats_dir):
+            for file in sorted(os.listdir(boats_dir)):
+                if file.lower().endswith('.png'):
+                    available_images.append(file.replace('.png', ''))
         
         # Create preview window
         preview_window = tk.Toplevel(self.root)
@@ -873,9 +882,15 @@ pluto-captain,Sophia"""
             image_container.pack(side=tk.LEFT, padx=10, pady=10)
             image_container.pack_propagate(False)  # Prevent resizing
             
-            # Load initial image
+            # Load initial image - check both fhm_images and boats folders
             image_filename = f"{character}.png"
             image_path = os.path.join(images_dir, image_filename)
+            
+            # If not found in images_dir, check boats folder
+            if not os.path.exists(image_path) and os.path.exists(boats_dir):
+                boat_image_path = os.path.join(boats_dir, image_filename)
+                if os.path.exists(boat_image_path):
+                    image_path = boat_image_path
             
             photo = None
             if os.path.exists(image_path):
@@ -1010,8 +1025,15 @@ pluto-captain,Sophia"""
                     order_data[idx]['character'] = new_char
                     order_data[idx]['name'] = name_v.get()
                     
-                    # Update image
+                    # Update image - check both fhm_images and boats folders
                     new_image_path = os.path.join(images_dir, f"{new_char}.png")
+                    
+                    # If not found in images_dir, check boats folder
+                    if not os.path.exists(new_image_path) and os.path.exists(boats_dir):
+                        boat_path = os.path.join(boats_dir, f"{new_char}.png")
+                        if os.path.exists(boat_path):
+                            new_image_path = boat_path
+                    
                     if os.path.exists(new_image_path):
                         try:
                             img = Image.open(new_image_path)
@@ -1255,7 +1277,14 @@ pluto-captain,Sophia"""
         # Function to update summary
         def update_summary():
             active_orders = [o for o in order_data if o is not None]
-            found = sum(1 for o in active_orders if os.path.exists(os.path.join(images_dir, f"{o['character']}.png")))
+            # Check both fhm_images and boats folders for image existence
+            def image_exists(char):
+                if os.path.exists(os.path.join(images_dir, f"{char}.png")):
+                    return True
+                if os.path.exists(boats_dir) and os.path.exists(os.path.join(boats_dir, f"{char}.png")):
+                    return True
+                return False
+            found = sum(1 for o in active_orders if image_exists(o['character']))
             missing = len(active_orders) - found
             summary_label.config(text=f"✓ Ready: {found}  |  ⚠ Issues: {missing}  |  Total: {len(active_orders)}")
         
@@ -1324,10 +1353,12 @@ pluto-captain,Sophia"""
                 messagebox.showwarning("No Orders", "No orders to process!")
                 return
             
-            # Check for missing images
+            # Check for missing images (check both fhm_images and boats folders)
             missing = []
             for o in active_orders:
-                if not os.path.exists(os.path.join(images_dir, f"{o['character']}.png")):
+                char_image_path = os.path.join(images_dir, f"{o['character']}.png")
+                boat_image_path = os.path.join(boats_dir, f"{o['character']}.png") if os.path.exists(boats_dir) else None
+                if not os.path.exists(char_image_path) and (boat_image_path is None or not os.path.exists(boat_image_path)):
                     display_name = o['name'] if o['name'] else "(no name)"
                     missing.append(f"{o['character']} (for {display_name})")
             
@@ -1506,10 +1537,10 @@ pluto-captain,Sophia"""
             archive_dir = "pdf_archive"
             os.makedirs(archive_dir, exist_ok=True)
             
-            # Find all order PDFs (individual and master)
+            # Find all order PDFs (magnets, boats, and master)
             pdf_files = []
             for file in os.listdir('.'):
-                if (file.startswith('order_output_') or file.startswith('MASTER_ORDER_')) and file.endswith('.pdf'):
+                if (file.startswith('order_output_') or file.startswith('boat_output_') or file.startswith('MASTER_ORDER_')) and file.endswith('.pdf'):
                     pdf_files.append(file)
             
             if not pdf_files:
@@ -1595,16 +1626,25 @@ pluto-captain,Sophia"""
                 self.log("✓ Processing complete!", "success")
                 self.view_btn.config(state=tk.NORMAL)
                
-                # Find all individual order PDFs
-                pdf_files = []
+                # Find all individual magnet PDFs
+                magnet_pdf_files = []
                 for file in sorted(os.listdir('.')):
                     if file.startswith('order_output_') and file.endswith('.pdf'):
-                        pdf_files.append(file)
+                        magnet_pdf_files.append(file)
+                
+                # Find all boat PDFs
+                boat_pdf_files = []
+                for file in sorted(os.listdir('.')):
+                    if file.startswith('boat_output_') and file.endswith('.pdf'):
+                        boat_pdf_files.append(file)
+                
+                # Combine: magnets first, then boats at the end
+                all_pdf_files = magnet_pdf_files + boat_pdf_files
                
-                if pdf_files:
+                if all_pdf_files:
                     # === Flatten each individual PDF in place ===
                     self.log("Flattening individual PDFs (removing hidden layers/data)...", "info")
-                    for pdf_file in pdf_files:
+                    for pdf_file in all_pdf_files:
                         if os.path.exists(pdf_file):
                             self.flatten_pdf_in_place(pdf_file, dpi=300)
                     # ===========================================
@@ -1612,7 +1652,7 @@ pluto-captain,Sophia"""
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     master_pdf_name = f"MASTER_ORDER_{timestamp}.pdf"
                    
-                    if self.merge_pdfs(pdf_files, master_pdf_name):
+                    if self.merge_pdfs(all_pdf_files, master_pdf_name):
                         # === Flatten the master PDF ===
                         self.log("Flattening master PDF...", "info")
                         self.flatten_pdf_in_place(master_pdf_name, dpi=300)
@@ -1630,11 +1670,14 @@ pluto-captain,Sophia"""
                         except Exception as e:
                             self.log(f"Could not auto-open PDF: {e}", "warning")
                        
+                        magnet_count = len(magnet_pdf_files)
+                        boat_count = len(boat_pdf_files)
                         messagebox.showinfo(
                             "Success",
                             f"Orders processed and FLATTENED!\n\n"
-                            f"✓ {len(pdf_files)} individual PDFs created (flattened)\n"
-                            f"✓ Master PDF created and flattened: {master_pdf_name}\n"
+                            f"✓ {magnet_count} magnet PDF(s) created\n"
+                            f"✓ {boat_count} boat PDF(s) created\n"
+                            f"✓ Master PDF created: {master_pdf_name}\n"
                             f"✓ No editable text or hidden template data remains\n\n"
                             f"Master PDF opened automatically!\n\n"
                             f"Check your PDF viewer!"
@@ -1779,18 +1822,25 @@ pluto-captain,Sophia"""
         self.master_pdf_path = None
         
     def get_available_images(self):
-        """Get list of available images from FHM_Images folder"""
+        """Get list of available images from FHM_Images folder AND boats folder"""
         try:
+            image_files = []
+            
+            # Get character images from FHM_Images (parent directory)
             parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
             images_dir = os.path.join(parent_dir, 'FHM_Images')
             
-            if not os.path.exists(images_dir):
-                return []
+            if os.path.exists(images_dir):
+                for file in os.listdir(images_dir):
+                    if file.lower().endswith('.png'):
+                        image_files.append(file)
             
-            image_files = []
-            for file in os.listdir(images_dir):
-                if file.lower().endswith('.png'):
-                    image_files.append(file)
+            # Get boat images from boats folder (same directory as this script)
+            boats_dir = "boats"
+            if os.path.exists(boats_dir):
+                for file in os.listdir(boats_dir):
+                    if file.lower().endswith('.png'):
+                        image_files.append(file)
             
             image_files.sort()
             return image_files
@@ -1989,7 +2039,7 @@ Stitch for Sophia"""
         # Choose model based on use_reasoning
         model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
         
-        prompt = f"""You are parsing Disney-themed magnet orders. Convert the order text into a simple character-name format.
+        prompt = f"""You are parsing Disney-themed orders for MAGNETS and BOATS. Convert the order text into a simple character-name format.
 
 IMPORTANT: You MUST select from this EXACT list of available images. Do NOT guess or make up names.
 
@@ -2001,13 +2051,30 @@ Order text to parse:
 
 INSTRUCTIONS:
 1. Find all personalization names in the order text
-2. For each name, identify which Disney character is requested
+2. For each name, identify which Disney character OR boat is requested
 3. Match to an EXACT filename from the available images list above
 4. You MUST use filenames EXACTLY as shown (including .png extension)
 5. If a character/variant is not in the list, skip it
 6. If theme is unclear, prefer "-captain" variants over others
 7. Common patterns: charactername-captain, charactername-christmas, charactername-pirate, charactername-witch
 8. IMPORTANT: Multiple orders can have the SAME personalization name (e.g., two "Johnny" orders)
+
+=== BOAT ORDER DETECTION ===
+If the order mentions ANY of these, it's a BOAT order (not a magnet):
+- "boat" or "ship"
+- Disney cruise ship names: Fantasy, Magic, Wonder, Wish, Dream, Treasure, Destiny
+- "cruise ship door decoration" or similar
+
+BOAT IMAGE MAPPING (use these EXACT filenames):
+- Disney Fantasy → boat_fantasy.png
+- Disney Magic → boat_magic.png  
+- Disney Wonder → boat_wonder.png
+- Disney Wish → boat_wish.png
+- Disney Dream → boat_destiny.png (NOTE: Dream maps to destiny)
+- Disney Treasure → boat_treasure.png
+- Disney Destiny → boat_destiny.png
+
+If ship name is unclear but it's a boat order, default to boat_fantasy.png
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
@@ -2016,18 +2083,33 @@ OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
   {{"name": "PersonName1", "image": "different-filename.png"}}
 ]
 
-Example:
-Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah, Captain Minnie for Johnny"
+Example with magnets:
+Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah"
 Output: [
   {{"name": "Johnny", "image": "mickey-captain.png"}},
-  {{"name": "Sarah", "image": "elsa-christmas.png"}},
-  {{"name": "Johnny", "image": "minnie-captain.png"}}
+  {{"name": "Sarah", "image": "elsa-christmas.png"}}
+]
+
+Example with boats:
+Input: "Disney Fantasy boat for The Smith Family, Disney Magic ship for Johnson Crew"
+Output: [
+  {{"name": "The Smith Family", "image": "boat_fantasy.png"}},
+  {{"name": "Johnson Crew", "image": "boat_magic.png"}}
+]
+
+Example with mixed orders:
+Input: "Mickey captain for Johnny, Fantasy boat for The Smiths, Minnie captain for Sarah"
+Output: [
+  {{"name": "Johnny", "image": "mickey-captain.png"}},
+  {{"name": "The Smiths", "image": "boat_fantasy.png"}},
+  {{"name": "Sarah", "image": "minnie-captain.png"}}
 ]
 
 CRITICAL: 
 - Only use filenames that EXACTLY match the list above
 - Return a LIST, not a dictionary, so duplicate names are preserved
 - Each order is a separate entry in the list
+- Boat orders use boat_*.png files, magnet orders use character-*.png files
 
 Return the list now:"""
         
