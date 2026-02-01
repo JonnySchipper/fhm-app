@@ -868,10 +868,10 @@ pluto-captain,Sophia"""
         order_widgets = []  # Store references to widgets for updates
         
         # Function to create an order row
-        def create_order_row(character="", name=""):
+        def create_order_row(character="", name="", year=""):
             """Create a single editable order row"""
             idx = len(order_data)
-            order_data.append({'character': character, 'name': name})
+            order_data.append({'character': character, 'name': name, 'year': year})
             
             # Create frame for this order
             order_frame = tk.Frame(scrollable_frame, bg="white", relief=tk.RIDGE, bd=2)
@@ -987,6 +987,43 @@ pluto-captain,Sophia"""
             )
             name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
+            # Row 2b: Year input (only for boats)
+            year_var = tk.StringVar(value=year)
+            year_row = tk.Frame(edit_frame, bg="white")
+            
+            # Check if this is a boat order
+            is_boat = character.lower().startswith('boat_')
+            
+            if is_boat:
+                year_row.pack(fill=tk.X, pady=(0, 5))
+                
+                tk.Label(
+                    year_row,
+                    text="Year:",
+                    font=("Segoe UI", 9, "bold"),
+                    bg="white",
+                    width=10,
+                    anchor=tk.W
+                ).pack(side=tk.LEFT)
+                
+                year_entry = tk.Entry(
+                    year_row,
+                    textvariable=year_var,
+                    font=("Segoe UI", 10),
+                    bg="#fff8e7",  # Light gold background to indicate boat-specific
+                    fg="black",
+                    width=10
+                )
+                year_entry.pack(side=tk.LEFT)
+                
+                tk.Label(
+                    year_row,
+                    text="(optional - for boat orders only)",
+                    font=("Segoe UI", 8, "italic"),
+                    bg="white",
+                    fg="#999"
+                ).pack(side=tk.LEFT, padx=(10, 0))
+            
             # Row 3: Status and actions
             action_row = tk.Frame(edit_frame, bg="white")
             action_row.pack(fill=tk.X, pady=(5, 0))
@@ -1019,11 +1056,12 @@ pluto-captain,Sophia"""
             delete_btn.pack(side=tk.RIGHT, padx=(5, 0))
             
             # Function to update image when character changes
-            def make_update_handler(idx, img_lbl, char_v, name_v, status_lbl):
+            def make_update_handler(idx, img_lbl, char_v, name_v, year_v, status_lbl):
                 def update_image(*args):
                     new_char = char_v.get()
                     order_data[idx]['character'] = new_char
                     order_data[idx]['name'] = name_v.get()
+                    order_data[idx]['year'] = year_v.get()
                     
                     # Update image - check both fhm_images and boats folders
                     new_image_path = os.path.join(images_dir, f"{new_char}.png")
@@ -1050,15 +1088,17 @@ pluto-captain,Sophia"""
                         status_lbl.config(text="⚠ Not found", fg="#f0ad4e")
                 return update_image
             
-            update_handler = make_update_handler(idx, img_label, char_var, name_var, status_label)
-            # Update image when character changes (via search button)
+            update_handler = make_update_handler(idx, img_label, char_var, name_var, year_var, status_label)
+            # Update data when fields change
             char_var.trace_add('write', lambda *args, h=update_handler: h())
-            name_var.trace_add('write', lambda *args, i=idx, n=name_var: setattr(order_data[i], 'name', n.get()) or order_data.__setitem__(i, {'character': order_data[i]['character'], 'name': n.get()}))
+            name_var.trace_add('write', lambda *args, i=idx, n=name_var: order_data[i].update({'name': n.get()}))
+            year_var.trace_add('write', lambda *args, i=idx, y=year_var: order_data[i].update({'year': y.get()}))
             
             order_widgets.append({
                 'frame': order_frame,
                 'char_var': char_var,
                 'name_var': name_var,
+                'year_var': year_var,
                 'img_label': img_label,
                 'status_label': status_label
             })
@@ -1374,8 +1414,14 @@ pluto-captain,Sophia"""
                 if not response:
                     return
             
-            # Update main input with edited orders
-            orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
+            # Update main input with edited orders (include year for boats if present)
+            def format_order(o):
+                year = o.get('year', '')
+                if year:
+                    return f"{o['character']},{o['name']},{year}"
+                return f"{o['character']},{o['name']}"
+            
+            orders_text = '\n'.join([format_order(o) for o in active_orders])
             self.order_input.delete(1.0, tk.END)
             self.order_input.insert(1.0, orders_text)
             self.order_input.config(fg="#333")
@@ -1406,7 +1452,14 @@ pluto-captain,Sophia"""
                 messagebox.showwarning("No Orders", "No orders to update!")
                 return
             
-            orders_text = '\n'.join([f"{o['character']},{o['name']}" for o in active_orders])
+            # Include year for boats if present
+            def format_order(o):
+                year = o.get('year', '')
+                if year:
+                    return f"{o['character']},{o['name']},{year}"
+                return f"{o['character']},{o['name']}"
+            
+            orders_text = '\n'.join([format_order(o) for o in active_orders])
             self.order_input.delete(1.0, tk.END)
             self.order_input.insert(1.0, orders_text)
             self.order_input.config(fg="#333")
@@ -1501,10 +1554,11 @@ pluto-captain,Sophia"""
             if not line:
                 continue
             if ',' in line:
-                parts = line.split(',', 1)
+                parts = line.split(',')
                 character = parts[0].strip()
                 name = parts[1].strip() if len(parts) > 1 else ""
-                orders.append((character, name))
+                year = parts[2].strip() if len(parts) > 2 else ""
+                orders.append((character, name, year))
         
         if not orders:
             messagebox.showwarning("No Valid Orders", "Please add at least one valid order.")
@@ -1516,9 +1570,9 @@ pluto-captain,Sophia"""
         try:
             with open(temp_csv, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(['character', 'name'])
-                for character, name in orders:
-                    writer.writerow([character, name])
+                writer.writerow(['character', 'name', 'year'])
+                for character, name, year in orders:
+                    writer.writerow([character, name, year])
             
             self.csv_path.set(temp_csv)
         except Exception as e:

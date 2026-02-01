@@ -63,6 +63,16 @@ TEST_OUTPUT_PDF = "test_boat_output.pdf"     # Output PDF file
 TEST_NAME = "The Christopher Family"       # 23 chars - long
 # TEST_NAME = "The Bartholomew-Henderson Family"  # 35 chars - very long
 
+# === YEAR (optional) - Set to empty string "" to disable ===
+TEST_YEAR = "2026"                          # Set to "" for no year
+# TEST_YEAR = ""                             # Uncomment to test without year
+
+# Year styling (orangeish-gold, above name text)
+YEAR_FONT_SIZE = 70
+YEAR_COLOR = (209, 150, 49, 255)            # Orangeish-gold
+YEAR_X_OFFSET = -14                            # Pixels to shift year left(-) or right(+)
+YEAR_Y_OFFSET = 320                          # Pixels above the name text center
+
 # ============================================================================
 # CODE - Don't edit below unless you know what you're doing
 # ============================================================================
@@ -182,9 +192,10 @@ def calculate_scaled_settings(name):
     return font_size, radius, (center_x, center_y)
 
 
-def create_test_boat_image(name, boat_image_path, output_path):
-    """Create a test boat image with curved text."""
-    print(f"\n🚢 Creating boat image with text: '{name}'")
+def create_test_boat_image(name, boat_image_path, output_path, year=""):
+    """Create a test boat image with curved text and optional year."""
+    year_display = f" with year [{year}]" if year else ""
+    print(f"\n🚢 Creating boat image with text: '{name}'{year_display}")
     print(f"   Source: {boat_image_path}")
     print(f"   Name length: {len(name)} chars (reference: {BOAT_TEXT_REFERENCE_LENGTH})")
     
@@ -217,6 +228,33 @@ def create_test_boat_image(name, boat_image_path, output_path):
         stroke_width=0,
         stroke_fill=(255, 255, 255, 255),
     )
+    
+    # Add year text if provided (above name text, orangeish-gold)
+    if year and year.strip():
+        year = year.strip()
+        print(f"   Adding year '{year}' (X offset: {YEAR_X_OFFSET}px, Y offset: {YEAR_Y_OFFSET}px)")
+        
+        # Calculate year position
+        # The curved text appears at the TOP of the arc (center_y - radius)
+        # So year should be above that position
+        year_x = center[0] + YEAR_X_OFFSET
+        text_y = center[1] - radius  # Where the curved text actually appears
+        year_y = text_y - YEAR_Y_OFFSET  # Above the text
+        
+        # Load font and draw year text (centered, not on arc)
+        draw = ImageDraw.Draw(img)
+        year_font = ImageFont.truetype(FONT_WALTOGRAPH, YEAR_FONT_SIZE)
+        
+        # Get text bounding box to center it
+        bbox = draw.textbbox((0, 0), year, font=year_font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        
+        # Center the year text
+        year_pos = (year_x - text_width // 2, year_y - text_height // 2)
+        draw.text(year_pos, year, font=year_font, fill=YEAR_COLOR)
+        print(f"   Text appears at Y={text_y}, year at Y={year_y}")
+        print(f"   Year position: {year_pos}")
     
     # Save
     img.save(output_path)
@@ -305,9 +343,13 @@ def main():
     print(f"\n🎯 Test Settings:")
     print(f"   Boat: {TEST_BOAT_IMAGE}")
     print(f"   Name: '{TEST_NAME}'")
+    if TEST_YEAR:
+        print(f"   Year: '{TEST_YEAR}' (orangeish-gold, {YEAR_FONT_SIZE}px, {YEAR_Y_OFFSET}px above text)")
+    else:
+        print(f"   Year: (none)")
     
     # Create test image
-    result_image = create_test_boat_image(TEST_NAME, TEST_BOAT_IMAGE, TEST_OUTPUT_IMAGE)
+    result_image = create_test_boat_image(TEST_NAME, TEST_BOAT_IMAGE, TEST_OUTPUT_IMAGE, year=TEST_YEAR)
     
     if not result_image:
         print("\n❌ Test failed - could not create boat image")
