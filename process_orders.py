@@ -339,7 +339,7 @@ def create_personalized_image(name, image_path, output_path):
     return output_path
 
 
-def create_personalized_boat_image(name, image_path, output_path, year=""):
+def create_personalized_boat_image(name, image_path, output_path):
     """
     Create a personalized boat image by adding curved text.
     Uses configurable parameters from BOAT_TEXT_* constants at top of file.
@@ -349,7 +349,6 @@ def create_personalized_boat_image(name, image_path, output_path, year=""):
         name: Personalization name (can be empty string for no text)
         image_path: Path to the source boat image
         output_path: Where to save the personalized image
-        year: Optional year to display above the name (orangeish-gold, size 40)
     """
     
     # If no name, just copy the original image
@@ -366,8 +365,7 @@ def create_personalized_boat_image(name, image_path, output_path, year=""):
         
         return output_path
     
-    year_display = f" with year [{year}]" if year else ""
-    print(f"  Adding text '{name}'{year_display} to boat {os.path.basename(image_path)}")
+    print(f"  Adding text '{name}' to boat {os.path.basename(image_path)}")
     print(f"    Name length: {len(name)} chars (reference: {BOAT_TEXT_REFERENCE_LENGTH})")
     
     # Calculate scaled settings based on name length
@@ -396,37 +394,6 @@ def create_personalized_boat_image(name, image_path, output_path, year=""):
         stroke_width=0,
         stroke_fill=(255, 255, 255, 255),
     )
-    
-    # Add year text if provided (above name text, orangeish-gold)
-    if year and year.strip():
-        year = year.strip()
-        print(f"    Adding year '{year}' above name text")
-        
-        # Year configuration (tuned in test_boat.py)
-        YEAR_FONT_SIZE = 70
-        YEAR_COLOR = (209, 150, 49, 255)  # Orangeish-gold
-        YEAR_X_OFFSET = -14   # Pixels to shift year left(-) or right(+)
-        YEAR_Y_OFFSET = 320   # Pixels above the name text
-        
-        # Calculate year position
-        # The curved text appears at the TOP of the arc (center_y - radius)
-        # So year should be above that position
-        year_x = center[0] + YEAR_X_OFFSET
-        text_y = center[1] - radius  # Where the curved text actually appears
-        year_y = text_y - YEAR_Y_OFFSET  # Above the text
-        
-        # Load font and draw year text (centered, not on arc)
-        draw = ImageDraw.Draw(img)
-        year_font = ImageFont.truetype(font_path, YEAR_FONT_SIZE)
-        
-        # Get text bounding box to center it
-        bbox = draw.textbbox((0, 0), year, font=year_font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        
-        # Center the year text
-        year_pos = (year_x - text_width // 2, year_y - text_height // 2)
-        draw.text(year_pos, year, font=year_font, fill=YEAR_COLOR)
     
     # Save with proper file handling
     output_img = img.convert("RGBA")
@@ -694,14 +661,13 @@ def create_boat_pdf(input_pdf, boat_image, output_pdf):
 
 def read_csv_orders(csv_path):
     """
-    Read CSV file with character-name pairs and optional year.
+    Read CSV file with character-name pairs.
     
     Expected CSV format:
     - Column 1: Character name (without .png extension)
     - Column 2: Personalization name (can be empty for no text)
-    - Column 3: Year (optional, for boat orders only)
     
-    Returns list of (character, name, year) tuples in order.
+    Returns list of (character, name) tuples in order.
     """
     orders = []
     
@@ -716,11 +682,14 @@ def read_csv_orders(csv_path):
                 pass  # Skip header
             else:
                 # First row is data, process it
-                if len(first_row) >= 1:
+                if len(first_row) >= 2:
                     character = first_row[0].strip()
                     name = first_row[1].strip() if len(first_row) > 1 else ""
-                    year = first_row[2].strip() if len(first_row) > 2 else ""
-                    orders.append((character, name, year))
+                    orders.append((character, name))
+                elif len(first_row) == 1:
+                    # Only character, no name
+                    character = first_row[0].strip()
+                    orders.append((character, ""))
         
         # Process remaining rows
         for row in reader:
@@ -729,8 +698,7 @@ def read_csv_orders(csv_path):
             
             character = row[0].strip()
             name = row[1].strip() if len(row) > 1 else ""
-            year = row[2].strip() if len(row) > 2 else ""
-            orders.append((character, name, year))
+            orders.append((character, name))
     
     return orders
 
@@ -848,21 +816,20 @@ def process_all_orders(csv_path):
     magnet_orders = []
     boat_orders = []
     
-    for char, name, year in orders:
+    for char, name in orders:
         if is_boat_order(char):
-            boat_orders.append((char, name, year))
+            boat_orders.append((char, name))
         else:
-            magnet_orders.append((char, name, year))
+            magnet_orders.append((char, name))
     
     print(f"✓ Found {len(orders)} total orders:")
     print(f"  • {len(magnet_orders)} magnet orders")
     print(f"  • {len(boat_orders)} boat orders")
     
-    for i, (char, name, year) in enumerate(orders, 1):
+    for i, (char, name) in enumerate(orders, 1):
         name_display = name if name else "(no personalization)"
-        year_display = f" [{year}]" if year else ""
         order_type = "🚢 BOAT" if is_boat_order(char) else "🧲 MAGNET"
-        print(f"  {i}. [{order_type}] {char} → {name_display}{year_display}")
+        print(f"  {i}. [{order_type}] {char} → {name_display}")
     
     # Validate boat orders can be processed
     if boat_orders:
@@ -892,7 +859,7 @@ def process_all_orders(csv_path):
     generated_magnet_images = []
     magnet_img_counter = 1
     
-    for i, (character, name, _year) in enumerate(magnet_orders, 1):
+    for i, (character, name) in enumerate(magnet_orders, 1):
         print(f"\nProcessing magnet {i}/{len(magnet_orders)}: {character}")
         
         # Find source image
@@ -928,9 +895,8 @@ def process_all_orders(csv_path):
     boat_img_counter = 1
     
     if boat_orders:
-        for i, (boat_type, name, year) in enumerate(boat_orders, 1):
-            year_display = f" [{year}]" if year else ""
-            print(f"\nProcessing boat {i}/{len(boat_orders)}: {boat_type}{year_display}")
+        for i, (boat_type, name) in enumerate(boat_orders, 1):
+            print(f"\nProcessing boat {i}/{len(boat_orders)}: {boat_type}")
             
             # Find source boat image
             source_image = find_boat_image_file(boat_type)
@@ -943,9 +909,9 @@ def process_all_orders(csv_path):
             output_filename = f"boat_{boat_img_counter}.png"
             output_path = os.path.join(OUTPUTS_DIR, output_filename)
             
-            # Create personalized boat image (with optional year)
+            # Create personalized boat image (opposite curve direction)
             try:
-                create_personalized_boat_image(name, source_image, output_path, year=year)
+                create_personalized_boat_image(name, source_image, output_path)
                 generated_boat_images.append(output_path)
                 boat_img_counter += 1
             except Exception as e:

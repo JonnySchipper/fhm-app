@@ -2014,9 +2014,114 @@ Stitch for Sophia"""
         thread = threading.Thread(target=self.parse_with_ai_thread, args=(raw_text, False))
         thread.daemon = True
         thread.start()
+    
+    def format_with_ai_stage1(self, raw_text, use_reasoning=True):
+        """STAGE 1: Format raw order text into simple character-name pairs"""
+        model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
+        
+        prompt = f"""You are extracting character and name pairs from Disney magnet order text.
+
+Your job is to format raw order data into a simple, clean list.
+
+IMPORTANT RULES:
+1. Extract ONLY character-name pairs (one per line)
+2. Format EXACTLY as: "Character description - name: PersonName"
+3. For boat orders, extract the boat with its ship name. Format as: "boat ShipName - name: FamilyName"
+4. If a line has BOTH a boat AND regular character orders, extract BOTH the boat AND the regular characters
+5. A single order line can have 1-5 character-name pairs (plus possibly a boat)
+6. Keep character descriptions simple and natural (e.g., "Luke Skywalker", "Stitch captain", "Minnie Spiderman")
+7. Preserve exact name spellings from the order
+8. If no name is specified for a character, use "no name" for the name
+9. Duck and dog orders do not need captain, pirate, etc. Just duck/dog and the ID number with them.
+10. Do not omit any items from the order including boats.
+11. The header for an order determines the theme. For example, if the header is pirate, every item in that order is pirate. Same with captain, christmas, etc. If the order is boat, assume captain theme for the character magnets.
+
+=== BOAT ORDER DETECTION ===
+If the order mentions ANY of these, it includes a BOAT order:
+- "boat" or "ship"
+- Disney cruise ship names: Fantasy, Magic, Wonder, Wish, Dream, Treasure, Destiny
+- "cruise ship door decoration" or similar
+
+BOAT SHIP NAME MAPPING:
+- Disney Fantasy → boat Fantasy
+- Disney Magic → boat Magic
+- Disney Wonder → boat Wonder
+- Disney Wish → boat Wish
+- Disney Dream → boat Dream
+- Disney Treasure → boat Treasure
+- Disney Destiny → boat Destiny
+
+EXAMPLES:
+
+Input: "Item: Captain Mickey, Personalization: Johnny"
+Output: Mickey captain - name: Johnny
+
+Input: "Item: Christmas Elsa\\nPersonalization: Sarah"
+Output: Elsa christmas - name: Sarah
+
+Input: "captain Order has boat +  Minnie for 'Katie' and  Woody for 'Sean' and dog 16 for 'Joni'"
+Output: 
+boat Fantasy - name: Katie
+Minnie captain - name: Katie
+Woody captain - name: Sean
+dog 16 - name: Joni
+
+Input: "Disney Fantasy boat for The Smith Family"
+Output:
+boat Fantasy - name: The Smith Family
+
+Input: "Disney Magic ship for Johnson Crew, also Mickey captain for Johnny"
+Output:
+boat Magic - name: Johnson Crew
+Mickey captain - name: Johnny
+
+Input: "1. Dory Captain - Joni  2. Ariel pirate - Gracie  3. Rapunzel Captain - Lila"
+Output:
+Dory captain - name: Joni
+Ariel pirate - name: Gracie
+Rapunzel captain - name: Lila
+
+Now process this order text:
+{raw_text}
+
+OUTPUT FORMAT: Return ONLY the formatted lines, one per line, no explanations, no markdown, just the text:"""
+        
+        headers = {
+            "Authorization": f"Bearer {GROK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 2000
+        }
+        
+        try:
+            self.root.after(0, lambda: self.log("Stage 1: Sending formatting request to Grok AI...", "info"))
+            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=60)
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content'].strip()
+            
+            # Clean up the response - remove markdown code blocks if present
+            if content.startswith('```'):
+                lines = content.split('\n')
+                content = '\n'.join(line for line in lines if not line.startswith('```'))
+                content = content.strip()
+            
+            self.root.after(0, lambda: self.log(f"Stage 1: Received formatted text ({len(content.split(chr(10)))} lines)", "info"))
+            return content
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.root.after(0, lambda msg=error_msg: self.log(f"Stage 1 Error: {msg}", "error"))
+            return None
         
     def parse_with_ai_thread(self, raw_text, use_reasoning=True):
-        """Parse with AI in background thread"""
+        """Parse with AI in background thread - 2-STAGE SYSTEM"""
         try:
             self.ai_processing = True
             # Disable both AI buttons
@@ -2025,18 +2130,38 @@ Stitch for Sophia"""
             
             model_type = "reasoning" if use_reasoning else "quick"
             self.root.after(0, lambda: self.status_text.set(f"AI is parsing your order ({model_type})..."))
-            self.root.after(0, lambda: self.log(f"Calling Grok AI ({model_type} model) with {len(self.image_list)} available images...", "info"))
             
-            # Call Grok API with reasoning parameter
-            result = self.call_grok_api(self.image_list, raw_text, use_reasoning)
+            # === STAGE 1: Format the raw text into simple character-name format ===
+            self.root.after(0, lambda: self.log(f"STAGE 1: Formatting raw order text...", "info"))
+            formatted_text = self.format_with_ai_stage1(raw_text, use_reasoning)
             
-            if not result:
-                self.root.after(0, lambda: messagebox.showerror("AI Error", "Failed to parse orders. Check the log for details."))
-                self.root.after(0, lambda: self.log("AI parsing failed", "error"))
+            if not formatted_text:
+                self.root.after(0, lambda: messagebox.showerror("AI Error", "Stage 1: Failed to format orders. Check the log for details."))
+                self.root.after(0, lambda: self.log("Stage 1 formatting failed", "error"))
                 return
             
-            # Convert result to simple format
+            self.root.after(0, lambda: self.log(f"STAGE 1 Complete: Formatted text ready", "success"))
+            self.root.after(0, lambda ft=formatted_text: self.log(f"Formatted output:\n{ft}", "info"))
+            
+            # Update the AI input field with Stage 1 formatted text
+            self.root.after(0, lambda: self.raw_text.delete(1.0, tk.END))
+            self.root.after(0, lambda ft=formatted_text: self.raw_text.insert(1.0, ft))
+            self.root.after(0, lambda: self.raw_text.config(fg="black"))
+            
+            # === STAGE 2: Parse the formatted text to match images ===
+            self.root.after(0, lambda: self.log(f"STAGE 2: Matching to images with {len(self.image_list)} available images...", "info"))
+            result = self.call_grok_api(self.image_list, formatted_text, use_reasoning)
+            
+            if not result:
+                self.root.after(0, lambda: messagebox.showerror("AI Error", "Stage 2: Failed to match images. Check the log for details."))
+                self.root.after(0, lambda: self.log("Stage 2 image matching failed", "error"))
+                return
+            
+            self.root.after(0, lambda: self.log(f"STAGE 2 Complete: Matched images", "success"))
+            
+            # Convert result to simple format - PRESERVE UNMATCHED ITEMS
             orders = []
+            unmatched_count = 0
             
             # Handle both old dictionary format and new list format
             if isinstance(result, list):
@@ -2045,16 +2170,31 @@ Stitch for Sophia"""
                     if isinstance(item, dict) and 'name' in item and 'image' in item:
                         name = item['name']
                         image_file = item['image']
-                        # Remove .png extension
-                        character = image_file.replace('.png', '')
-                        orders.append(f"{character},{name}")
+                        original_item = item.get('item', '')  # Get original item description if available
+                        
+                        # Check for N/A or unmatched items
+                        if image_file.lower() in ['n/a', 'n/a.png', 'unknown', 'unknown.png', 'not_found', 'not_found.png']:
+                            # Include original item info for unmatched items
+                            if original_item:
+                                orders.append(f"IMAGE-NOT-FOUND [{original_item}],{name}")
+                            else:
+                                orders.append(f"IMAGE-NOT-FOUND,{name}")
+                            unmatched_count += 1
+                        else:
+                            # Remove .png extension
+                            character = image_file.replace('.png', '')
+                            orders.append(f"{character},{name}")
             elif isinstance(result, dict):
                 # Old dictionary format - kept for backwards compatibility
                 for name, image_file in result.items():
-                    if name not in ['_order', 'unmatched'] and image_file:
-                        # Remove .png extension
-                        character = image_file.replace('.png', '')
-                        orders.append(f"{character},{name}")
+                    if name not in ['_order', 'unmatched']:
+                        if not image_file or image_file.lower() in ['n/a', 'unknown', 'not_found']:
+                            orders.append(f"IMAGE-NOT-FOUND,{name}")
+                            unmatched_count += 1
+                        else:
+                            # Remove .png extension
+                            character = image_file.replace('.png', '')
+                            orders.append(f"{character},{name}")
             
             if not orders:
                 self.root.after(0, lambda: messagebox.showwarning("No Matches", "AI couldn't find any matching orders.\nTry being more specific or use manual entry."))
@@ -2065,18 +2205,34 @@ Stitch for Sophia"""
             orders_text = '\n'.join(orders)
             self.root.after(0, lambda: self.order_input.delete(1.0, tk.END))
             self.root.after(0, lambda: self.order_input.insert(1.0, orders_text))
-            self.root.after(0, lambda: self.order_input.config(fg="#333"))
+            self.root.after(0, lambda: self.order_input.config(fg="black"))
             self.root.after(0, lambda: self.update_count())
             self.root.after(0, lambda: self.preview_orders())
             
-            self.root.after(0, lambda: self.log(f"✓ AI parsed {len(orders)} orders successfully!", "success"))
-            self.root.after(0, lambda: self.status_text.set(f"✓ AI found {len(orders)} orders! Review and click Process."))
-            self.root.after(0, lambda: messagebox.showinfo("Success!", f"AI parsed {len(orders)} orders!\n\nReview them below and click 'Process Orders' when ready."))
+            # Show appropriate message based on matches
+            if unmatched_count > 0:
+                self.root.after(0, lambda: self.log(f"✓ 2-Stage AI Complete: {len(orders)} orders ({unmatched_count} need image selection)", "warning"))
+                self.root.after(0, lambda: self.status_text.set(f"✓ AI found {len(orders)} orders - {unmatched_count} need image selection"))
+                self.root.after(0, lambda um=unmatched_count, tot=len(orders): messagebox.showwarning(
+                    "Partial Match",
+                    f"2-Stage AI Processing Complete!\n\n"
+                    f"✓ Stage 1: Formatted {tot} orders\n"
+                    f"✓ Stage 2: Matched images\n\n"
+                    f"⚠️ {um} item{'s' if um != 1 else ''} couldn't be matched to images.\n"
+                    f"They are marked as 'IMAGE-NOT-FOUND'.\n\n"
+                    f"In the preview window, you can search and select\n"
+                    f"the correct images for these items.\n\n"
+                    f"Click 'Preview Orders' to review and fix."
+                ))
+            else:
+                self.root.after(0, lambda: self.log(f"✓ 2-Stage AI Complete: {len(orders)} orders successfully parsed!", "success"))
+                self.root.after(0, lambda: self.status_text.set(f"✓ AI found {len(orders)} orders! Review and click Process."))
+                self.root.after(0, lambda tot=len(orders): messagebox.showinfo("Success!", f"2-Stage AI Processing Complete!\n\n✓ Stage 1: Formatted {tot} orders\n✓ Stage 2: All images matched\n\nReview and click 'Process Orders' when ready."))
             
         except Exception as e:
             error_msg = str(e)
-            self.root.after(0, lambda msg=error_msg: self.log(f"AI Error: {msg}", "error"))
-            self.root.after(0, lambda msg=error_msg: messagebox.showerror("Error", f"AI parsing failed:\n{msg}"))
+            self.root.after(0, lambda msg=error_msg: self.log(f"2-Stage AI Error: {msg}", "error"))
+            self.root.after(0, lambda msg=error_msg: messagebox.showerror("Error", f"2-Stage AI parsing failed:\n{msg}"))
             
         finally:
             self.ai_processing = False
@@ -2085,7 +2241,7 @@ Stitch for Sophia"""
             self.root.after(0, lambda: self.quick_parse_btn.config(state=tk.NORMAL, text="⚡ Quick Parse"))
             
     def call_grok_api(self, image_list, order_text, use_reasoning=True):
-        """Call Grok API to parse order text"""
+        """STAGE 2: Call Grok API to match formatted orders to images"""
         # Format the complete list of available images
         # Send ALL images so AI can choose from exact matches
         images_formatted = '\n'.join(f"  - {img}" for img in image_list)
@@ -2093,76 +2249,86 @@ Stitch for Sophia"""
         # Choose model based on use_reasoning
         model = "grok-4-1-fast-reasoning" if use_reasoning else "grok-4-1-fast-non-reasoning"
         
-        prompt = f"""You are parsing Disney-themed orders for MAGNETS and BOATS. Convert the order text into a simple character-name format.
+        prompt = f"""You are matching Disney character descriptions to exact image filenames.
 
-IMPORTANT: You MUST select from this EXACT list of available images. Do NOT guess or make up names.
+You will receive pre-formatted order text in this format:
+"Character description - name: PersonName"
+
+Your job is to match each character description to an EXACT image filename from the available list.
 
 COMPLETE LIST OF AVAILABLE IMAGES ({len(image_list)} total):
 {images_formatted}
 
-Order text to parse:
+Pre-formatted order text:
 {order_text}
 
-INSTRUCTIONS:
-1. Find all personalization names in the order text
-2. For each name, identify which Disney character OR boat is requested
-3. Match to an EXACT filename from the available images list above
-4. You MUST use filenames EXACTLY as shown (including .png extension)
-5. If a character/variant is not in the list, skip it
-6. If theme is unclear, prefer "-captain" variants over others
-7. Common patterns: charactername-captain, charactername-christmas, charactername-pirate, charactername-witch
-8. IMPORTANT: Multiple orders can have the SAME personalization name (e.g., two "Johnny" orders)
+MATCHING RULES:
+1. For each line, extract the character description and the name
+2. Match the character description to an EXACT filename from the list above
+3. You MUST use filenames EXACTLY as shown (including .png extension)
+4. **CRITICAL: If you cannot find a match, use "N/A.png" - DO NOT skip the item!**
+4.5 if there is a request for a captain, but there is only a normal image, use the normal image.
+5. Common patterns to match:
+   - "Mickey captain" → "mickey-captain.png"
+   - "Stitch captain" → "stitch-captain.png"
+   - "Elsa christmas" → "elsa-christmas.png"
+   - "Minnie Spiderman" → "minnie-spiderman.png"
+   - "Minnie pirate" → "minnie-pirate.png"
+   - "Donald Hulk" → "donald-hulk.png"
+   - "dog 16" → "dog-16.png"
+   - "duck 23" → "duck-23.png"
+6. Character names are case-insensitive for matching
+7. ALWAYS include ALL items, even if no match found (use "N/A.png")
+8. for magnets with no name, leave it blank. (example "name": "")
 
-=== BOAT ORDER DETECTION ===
-If the order mentions ANY of these, it's a BOAT order (not a magnet):
-- "boat" or "ship"
-- Disney cruise ship names: Fantasy, Magic, Wonder, Wish, Dream, Treasure, Destiny
-- "cruise ship door decoration" or similar
-
-BOAT IMAGE MAPPING (use these EXACT filenames):
-- Disney Fantasy → boat_fantasy.png
-- Disney Magic → boat_magic.png  
-- Disney Wonder → boat_wonder.png
-- Disney Wish → boat_wish.png
-- Disney Dream → boat_destiny.png (NOTE: Dream maps to destiny)
-- Disney Treasure → boat_treasure.png
-- Disney Destiny → boat_destiny.png
-
-If ship name is unclear but it's a boat order, default to boat_fantasy.png
+=== BOAT IMAGE MATCHING ===
+Boat orders appear as "boat ShipName - name: FamilyName"
+Match boat orders to these EXACT filenames:
+- "boat Fantasy" → "boat_fantasy.png"
+- "boat Magic" → "boat_magic.png"
+- "boat Wonder" → "boat_wonder.png"
+- "boat Wish" → "boat_wish.png"
+- "boat Dream" → "boat_dream.png"
+- "boat Treasure" → "boat_treasure.png"
+- "boat Destiny" → "boat_destiny.png"
+- If ship name is unclear, default to "boat_fantasy.png"
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
-  {{"name": "PersonName1", "image": "exact-filename.png"}},
-  {{"name": "PersonName2", "image": "exact-filename.png"}},
-  {{"name": "PersonName1", "image": "different-filename.png"}}
+  {{"name": "PersonName1", "image": "exact-filename.png", "item": "original character description"}},
+  {{"name": "PersonName2", "image": "exact-filename.png", "item": "original character description"}},
+  {{"name": "", "image": "N/A.png", "item": "original character description"}}
 ]
 
-Example with magnets:
-Input: "Captain Mickey for Johnny, Christmas Elsa for Sarah"
+EXAMPLES:
+
+Input: "Mickey captain - name: Johnny"
+Output: [{{"name": "Johnny", "image": "mickey-captain.png", "item": "Mickey captain"}}]
+
+Input: "Stitch pirate - name: Michael\\nMinnie Spiderman - name: Cecile"
 Output: [
-  {{"name": "Johnny", "image": "mickey-captain.png"}},
-  {{"name": "Sarah", "image": "elsa-christmas.png"}}
+  {{"name": "Michael", "image": "stitch-pirate.png", "item": "Stitch pirate"}},
+  {{"name": "Cecile", "image": "minnie-spiderman.png", "item": "Minnie Spiderman"}}
 ]
 
-Example with boats:
-Input: "Disney Fantasy boat for The Smith Family, Disney Magic ship for Johnson Crew"
+Input: "boat Fantasy - name: The Smith Family"
+Output: [{{"name": "The Smith Family", "image": "boat_fantasy.png", "item": "boat Fantasy"}}]
+
+Input: "Mickey captain - name: Johnny\\nboat Magic - name: Johnson Crew\\nMinnie captain - name: Sarah"
 Output: [
-  {{"name": "The Smith Family", "image": "boat_fantasy.png"}},
-  {{"name": "Johnson Crew", "image": "boat_magic.png"}}
+  {{"name": "Johnny", "image": "mickey-captain.png", "item": "Mickey captain"}},
+  {{"name": "Johnson Crew", "image": "boat_magic.png", "item": "boat Magic"}},
+  {{"name": "Sarah", "image": "minnie-captain.png", "item": "Minnie captain"}}
 ]
 
-Example with mixed orders:
-Input: "Mickey captain for Johnny, Fantasy boat for The Smiths, Minnie captain for Sarah"
-Output: [
-  {{"name": "Johnny", "image": "mickey-captain.png"}},
-  {{"name": "The Smiths", "image": "boat_fantasy.png"}},
-  {{"name": "Sarah", "image": "minnie-captain.png"}}
-]
+Input: "RareCharacter - name: Test"
+Output: [{{"name": "Test", "image": "N/A.png", "item": "RareCharacter"}}]
 
 CRITICAL: 
 - Only use filenames that EXACTLY match the list above
-- Return a LIST, not a dictionary, so duplicate names are preserved
-- Each order is a separate entry in the list
+- If no match found, use "N/A.png" - DO NOT OMIT THE ITEM
+- Return a LIST, preserving order
+- Include ALL items from the input
 - Boat orders use boat_*.png files, magnet orders use character-*.png files
 
 Return the list now:"""
