@@ -1042,8 +1042,8 @@ pluto-captain,Sophia"""
                 def update_image(*args):
                     new_char = char_v.get()
                     order_data[idx]['character'] = new_char
-                    order_data[idx]['name'] = name_v.get()
-                    order_data[idx]['year'] = year_v.get()
+                    # Note: name and year are updated by their own trace handlers
+                    # so we don't overwrite them here to avoid sync issues
                     
                     # Update image - check both fhm_images and boats folders
                     new_image_path = os.path.join(images_dir, f"{new_char}.png")
@@ -1078,7 +1078,12 @@ pluto-captain,Sophia"""
             
             # Search button (after update_handler exists so we can pass it as callback)
             def make_search_handler(char_v, update_h):
-                return lambda: open_image_search(char_v, on_select_callback=update_h)
+                def open_search():
+                    # Process any pending UI updates (e.g. focus loss from name entry)
+                    # This ensures the name value is synced before opening the modal dialog
+                    preview_window.update_idletasks()
+                    open_image_search(char_v, on_select_callback=update_h)
+                return open_search
             
             search_btn = tk.Button(
                 char_row,
@@ -1323,6 +1328,11 @@ pluto-captain,Sophia"""
         # Function to update summary
         def update_summary():
             active_orders = [o for o in order_data if o is not None]
+            
+            # Separate boats from character orders
+            boats = [o for o in active_orders if o['character'].lower().startswith('boat_')]
+            portholes = [o for o in active_orders if not o['character'].lower().startswith('boat_')]
+            
             # Check both fhm_images and boats folders for image existence
             def image_exists(char):
                 if os.path.exists(os.path.join(images_dir, f"{char}.png")):
@@ -1330,9 +1340,18 @@ pluto-captain,Sophia"""
                 if os.path.exists(boats_dir) and os.path.exists(os.path.join(boats_dir, f"{char}.png")):
                     return True
                 return False
+            
             found = sum(1 for o in active_orders if image_exists(o['character']))
             missing = len(active_orders) - found
-            summary_label.config(text=f"✓ Ready: {found}  |  ⚠ Issues: {missing}  |  Total: {len(active_orders)}")
+            
+            # Build summary with warning for odd portholes
+            summary_text = f"Boats: {len(boats)}  |  Portholes: {len(portholes)}  |  ✓ Ready: {found}  |  ⚠ Issues: {missing}"
+            
+            # Change color if portholes are odd
+            if len(portholes) % 2 == 1:
+                summary_label.config(text=summary_text, fg="#d9534f")  # Red warning
+            else:
+                summary_label.config(text=summary_text, fg="#333")  # Normal
         
         # Add Order button (above canvas)
         add_order_frame = tk.Frame(preview_window, bg="white")
@@ -1365,7 +1384,7 @@ pluto-captain,Sophia"""
         # Summary
         summary_label = tk.Label(
             bottom_frame,
-            text="",
+            text="Loading orders...",
             font=("Segoe UI", 10, "bold"),
             bg="#f0f0f0",
             fg="#333"
@@ -1397,6 +1416,21 @@ pluto-captain,Sophia"""
             
             if not active_orders:
                 messagebox.showwarning("No Orders", "No orders to process!")
+                return
+            
+            # Separate boats from character orders
+            portholes = [o for o in active_orders if not o['character'].lower().startswith('boat_')]
+            
+            # Check for odd number of character orders
+            if len(portholes) % 2 == 1:
+                messagebox.showwarning(
+                    "Odd Number of Portholes",
+                    f"You have {len(portholes)} character order(s) (portholes).\n\n"
+                    "Character magnets are printed 2 per page.\n"
+                    "With an odd number, the last order will be skipped!\n\n"
+                    "Please add or remove one order to make it even.",
+                    icon='warning'
+                )
                 return
             
             # Check for missing images (check both fhm_images and boats folders)
@@ -2056,6 +2090,7 @@ BOAT SHIP NAME MAPPING:
 - Disney Dream → boat Dream
 - Disney Treasure → boat Treasure
 - Disney Destiny → boat Destiny
+- No name mentioned - boat No Name
 
 EXAMPLES:
 
@@ -2297,7 +2332,7 @@ Match boat orders to these EXACT filenames:
 - "boat Dream" → "boat_dream.png"
 - "boat Treasure" → "boat_treasure.png"
 - "boat Destiny" → "boat_destiny.png"
-- If ship name is unclear, default to "boat_fantasy.png"
+- If ship name is not present, default to "boat_noname.png"
 
 OUTPUT FORMAT - Return ONLY a Python LIST of dictionaries, no other text:
 [
