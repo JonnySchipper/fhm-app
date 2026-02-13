@@ -946,24 +946,6 @@ pluto-captain,Sophia"""
             )
             char_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
             
-            # Search button
-            def make_search_handler(char_v):
-                return lambda: open_image_search(char_v)
-            
-            search_btn = tk.Button(
-                char_row,
-                text="🔍 Search",
-                command=make_search_handler(char_var),
-                font=("Segoe UI", 9),
-                bg="#17a2b8",
-                fg="white",
-                relief=tk.FLAT,
-                padx=12,
-                pady=5,
-                cursor="hand2"
-            )
-            search_btn.pack(side=tk.LEFT)
-            
             # Row 2: Name input
             name_row = tk.Frame(edit_frame, bg="white")
             name_row.pack(fill=tk.X, pady=(0, 5))
@@ -1094,6 +1076,24 @@ pluto-captain,Sophia"""
             name_var.trace_add('write', lambda *args, i=idx, n=name_var: order_data[i].update({'name': n.get()}))
             year_var.trace_add('write', lambda *args, i=idx, y=year_var: order_data[i].update({'year': y.get()}))
             
+            # Search button (after update_handler exists so we can pass it as callback)
+            def make_search_handler(char_v, update_h):
+                return lambda: open_image_search(char_v, on_select_callback=update_h)
+            
+            search_btn = tk.Button(
+                char_row,
+                text="🔍 Search",
+                command=make_search_handler(char_var, update_handler),
+                font=("Segoe UI", 9),
+                bg="#17a2b8",
+                fg="white",
+                relief=tk.FLAT,
+                padx=12,
+                pady=5,
+                cursor="hand2"
+            )
+            search_btn.pack(side=tk.LEFT)
+            
             order_widgets.append({
                 'frame': order_frame,
                 'char_var': char_var,
@@ -1107,7 +1107,7 @@ pluto-captain,Sophia"""
             return idx
         
         # Image search dialog
-        def open_image_search(target_var):
+        def open_image_search(target_var, on_select_callback=None):
             """Open a fast searchable list to select character images"""
             search_window = tk.Toplevel(preview_window)
             search_window.title("🔍 Search Characters")
@@ -1214,6 +1214,8 @@ pluto-captain,Sophia"""
                 if selection:
                     selected = listbox.get(selection[0])
                     target_var.set(selected)
+                    if on_select_callback:
+                        on_select_callback()
                     search_window.destroy()
             
             listbox.bind('<Double-Button-1>', on_double_click)
@@ -1224,6 +1226,8 @@ pluto-captain,Sophia"""
                 if selection:
                     selected = listbox.get(selection[0])
                     target_var.set(selected)
+                    if on_select_callback:
+                        on_select_callback()
                     search_window.destroy()
             
             listbox.bind('<Return>', on_enter)
@@ -1265,6 +1269,8 @@ pluto-captain,Sophia"""
                 if selection:
                     selected = listbox.get(selection[0])
                     target_var.set(selected)
+                    if on_select_callback:
+                        on_select_callback()
                     search_window.destroy()
                 else:
                     messagebox.showwarning("No Selection", "Please select a character from the list.")
