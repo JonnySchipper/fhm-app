@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import platform
 import time
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -68,6 +69,18 @@ def load_api_key():
     return None
 
 GROK_API_KEY = load_api_key()
+
+
+def extract_number(filename):
+    """Extract the numeric suffix from order/boat PDF filenames for natural sorting.
+    
+    Examples:
+        order_output_20260214_132805_1.pdf -> 1
+        order_output_20260214_132805_10.pdf -> 10
+        boat_output_20260214_132805_1.pdf -> 1
+    """
+    match = re.search(r'_(\d+)\.pdf$', filename)
+    return int(match.group(1)) if match else 0
 
 
 class OrderProcessorGUI:
@@ -1722,15 +1735,17 @@ pluto-captain,Sophia"""
                
                 # Find all individual magnet PDFs
                 magnet_pdf_files = []
-                for file in sorted(os.listdir('.')):
+                for file in os.listdir('.'):
                     if file.startswith('order_output_') and file.endswith('.pdf'):
                         magnet_pdf_files.append(file)
+                magnet_pdf_files.sort(key=extract_number)
                 
                 # Find all boat PDFs
                 boat_pdf_files = []
-                for file in sorted(os.listdir('.')):
+                for file in os.listdir('.'):
                     if file.startswith('boat_output_') and file.endswith('.pdf'):
                         boat_pdf_files.append(file)
+                boat_pdf_files.sort(key=extract_number)
                 
                 # Combine: magnets first, then boats at the end
                 all_pdf_files = magnet_pdf_files + boat_pdf_files
@@ -1876,21 +1891,21 @@ pluto-captain,Sophia"""
     def merge_pdfs(self, pdf_files, output_path):
         """Merge multiple PDF files into one master PDF"""
         try:
-            from PyPDF2 import PdfReader, PdfWriter
+            import fitz
             
             self.log(f"Merging {len(pdf_files)} PDFs into master PDF...", "info")
             
-            writer = PdfWriter()
+            writer = fitz.open()
             
             for pdf_file in pdf_files:
                 if os.path.exists(pdf_file):
-                    reader = PdfReader(pdf_file)
-                    for page in reader.pages:
-                        writer.add_page(page)
+                    doc = fitz.open(pdf_file)
+                    writer.insert_pdf(doc)
+                    doc.close()
                     self.log(f"  Added {pdf_file}", "info")
             
-            with open(output_path, 'wb') as output_file:
-                writer.write(output_file)
+            writer.save(output_path, garbage=4, deflate=True, clean=True)
+            writer.close()
             
             self.log(f"✓ Master PDF created: {output_path}", "success")
             return True
