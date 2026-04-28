@@ -30,6 +30,9 @@ from pathlib import Path
 # Import the processing functions
 import process_orders
 
+# Script directory - used to resolve all paths independent of launch CWD
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Grok API configuration
 GROK_API_URL = "https://api.x.ai/v1/chat/completions"
 
@@ -767,19 +770,15 @@ pluto-captain,Sophia"""
             messagebox.showinfo("Preview Unavailable", "Image preview requires the Pillow library.\nInstall it with: pip install Pillow")
             return
         
-        # Get the images directory
-        parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
-        images_dir = os.path.join(parent_dir, 'fhm_images')
+        # Get the images directory anchored to the script's location
+        images_dir = os.path.join(os.path.dirname(SCRIPT_DIR), 'fhm_images')
         
         if not os.path.exists(images_dir):
-            # Try current directory's fhm_images
-            images_dir = os.path.join(os.getcwd(), 'fhm_images')
-            if not os.path.exists(images_dir):
-                messagebox.showwarning("Images Not Found", "Cannot find fhm_images folder.")
-                return
+            messagebox.showwarning("Images Not Found", f"Cannot find fhm_images folder.\nExpected: {images_dir}")
+            return
         
-        # Get boats directory
-        boats_dir = "boats"
+        # Get boats directory anchored to the script's location
+        boats_dir = os.path.join(SCRIPT_DIR, "boats")
         
         # Get all available images (characters + boats)
         available_images = []
@@ -1931,13 +1930,12 @@ pluto-captain,Sophia"""
         self.master_pdf_path = None
         
     def get_available_images(self):
-        """Get list of available images from FHM_Images folder AND boats folder"""
+        """Get list of available images from fhm_images folder AND boats folder"""
         try:
             image_files = []
             
-            # Get character images from FHM_Images (parent directory)
-            parent_dir = os.path.dirname(os.path.abspath(os.getcwd()))
-            images_dir = os.path.join(parent_dir, 'FHM_Images')
+            # Get character images from fhm_images (parent directory)
+            images_dir = os.path.join(os.path.dirname(SCRIPT_DIR), 'fhm_images')
             
             if os.path.exists(images_dir):
                 for file in os.listdir(images_dir):
@@ -1945,7 +1943,7 @@ pluto-captain,Sophia"""
                         image_files.append(file)
             
             # Get boat images from boats folder (same directory as this script)
-            boats_dir = "boats"
+            boats_dir = os.path.join(SCRIPT_DIR, "boats")
             if os.path.exists(boats_dir):
                 for file in os.listdir(boats_dir):
                     if file.lower().endswith('.png'):
@@ -2151,12 +2149,12 @@ OUTPUT FORMAT: Return ONLY the formatted lines, one per line, no explanations, n
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "max_tokens": 2000
+            "max_tokens": 8000
         }
         
         try:
             self.root.after(0, lambda: self.log("Stage 1: Sending formatting request to Grok AI...", "info"))
-            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=60)
+            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=120)
             response.raise_for_status()
             
             result = response.json()
@@ -2209,9 +2207,37 @@ OUTPUT FORMAT: Return ONLY the formatted lines, one per line, no explanations, n
             result = self.call_grok_api(self.image_list, formatted_text, use_reasoning)
             
             if not result:
-                self.root.after(0, lambda: messagebox.showerror("AI Error", "Stage 2: Failed to match images. Check the log for details."))
-                self.root.after(0, lambda: self.log("Stage 2 image matching failed", "error"))
-                return
+                # Stage 2 returned nothing - build IMAGE-NOT-FOUND entries from
+                # Stage 1 output so the user can manually match in the preview UI
+                self.root.after(0, lambda: self.log(
+                    "Stage 2 returned no matches - preparing items for manual image selection...", "warning"))
+                
+                fallback_items = []
+                for line in formatted_text.strip().split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if ' - name: ' in line:
+                        parts = line.split(' - name: ', 1)
+                        item_desc = parts[0].strip()
+                        name = parts[1].strip() if len(parts) > 1 else ''
+                    else:
+                        item_desc = line
+                        name = ''
+                    fallback_items.append({'image': 'N/A.png', 'name': name, 'item': item_desc})
+                
+                if not fallback_items:
+                    self.root.after(0, lambda: self.log("Stage 2 failed and Stage 1 output could not be parsed", "error"))
+                    self.root.after(0, lambda: messagebox.showerror(
+                        "AI Error",
+                        "Stage 2 could not match images, and Stage 1 output was also unreadable.\n\n"
+                        "Please try again or enter orders manually."
+                    ))
+                    return
+                
+                result = fallback_items
+                self.root.after(0, lambda n=len(fallback_items): self.log(
+                    f"Created {n} unmatched item(s) for manual selection", "warning"))
             
             self.root.after(0, lambda: self.log(f"STAGE 2 Complete: Matched images", "success"))
             
@@ -2398,18 +2424,20 @@ Return the list now:"""
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "max_tokens": 2000  # Sufficient for list output format
+            "max_tokens": 16000
         }
         
         try:
             self.root.after(0, lambda: self.log("Sending request to Grok AI with complete image list...", "info"))
-            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=60)  # Increased timeout for larger prompt
+            response = requests.post(GROK_API_URL, headers=headers, json=data, timeout=120)
             response.raise_for_status()
             
             result = response.json()
             content = result['choices'][0]['message']['content']
+            finish_reason = result['choices'][0].get('finish_reason', 'unknown')
             
-            self.root.after(0, lambda: self.log(f"Received response from AI", "info"))
+            self.root.after(0, lambda fr=finish_reason: self.log(
+                f"Received response from AI (finish_reason: {fr})", "info" if fr != "length" else "warning"))
             
             # Try to extract list format first (new format)
             list_start = content.find('[')
@@ -2438,7 +2466,10 @@ Return the list now:"""
                 except json.JSONDecodeError:
                     pass
             
-            self.root.after(0, lambda: self.log("Could not parse AI response", "error"))
+            # Log both the raw content (truncated) and the parse failure so the log is never empty
+            snippet = content[:300].replace('\n', ' ') if content else '(empty response)'
+            self.root.after(0, lambda s=snippet: self.log(
+                f"Could not parse AI response as JSON. Raw content snippet: {s}", "error"))
             return {}
                 
         except Exception as e:
@@ -2559,6 +2590,11 @@ For detailed help, see README.md or QUICKSTART.md
 
 def main():
     """Main application entry point"""
+    # Ensure CWD is the script's directory so all relative paths
+    # (outputs, archive, temp, master PDFs) resolve correctly regardless
+    # of how the app was launched.
+    os.chdir(SCRIPT_DIR)
+
     if TkinterDnD is not None:
         try:
             # Try to use TkinterDnD for drag and drop

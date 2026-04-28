@@ -19,21 +19,25 @@ from PyPDF2 import PdfReader, PdfWriter
 # CONFIGURATION
 # ============================================================================
 
-# Images folder location (FHM_Images in parent directory)
-PARENT_DIR = os.path.dirname(os.path.abspath(os.getcwd()))
-IMAGES_DIR = os.path.join(PARENT_DIR, 'FHM_Images')
+# Anchor all paths to the script's own location so the app works regardless
+# of what directory it is launched from.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+
+# Images folder location (fhm_images in parent directory)
+IMAGES_DIR = os.path.join(PARENT_DIR, 'fhm_images')
 
 # Template PDF for output
-TEMPLATE_PDF = "format.pdf"
+TEMPLATE_PDF = os.path.join(SCRIPT_DIR, "format.pdf")
 
 # Output directories
-OUTPUTS_DIR = "outputs"
-TEMP_DIR = "temp"
+OUTPUTS_DIR = os.path.join(SCRIPT_DIR, "outputs")
+TEMP_DIR = os.path.join(SCRIPT_DIR, "temp")
 
 # Font paths
-FONT_WALTOGRAPH = "font/waltographUI.ttf"
-FONT_BLUEBERRY = "font/blueberry.ttf"
-FONT_FALLBACK = "font/waltograph42.otf"
+FONT_WALTOGRAPH = os.path.join(SCRIPT_DIR, "font", "waltographUI.ttf")
+FONT_BLUEBERRY = os.path.join(SCRIPT_DIR, "font", "blueberry.ttf")
+FONT_FALLBACK = os.path.join(SCRIPT_DIR, "font", "waltograph42.otf")
 
 
 # ============================================================================
@@ -41,8 +45,8 @@ FONT_FALLBACK = "font/waltograph42.otf"
 # ============================================================================
 
 # Boat images folder (in same directory as this script)
-BOATS_DIR = "boats"
-BOAT_TEMPLATE_PDF = "boat_format.pdf"
+BOATS_DIR = os.path.join(SCRIPT_DIR, "boats")
+BOAT_TEMPLATE_PDF = os.path.join(SCRIPT_DIR, "boat_format.pdf")
 
 # Text positioning for boats (frown curve - center below text)
 BOAT_TEXT_CENTER = (950, 4220)     # (X, Y) center BELOW text = frown curve
@@ -54,11 +58,14 @@ BOAT_TEXT_KERNING = 1.2            # Letter spacing
 # === NAME LENGTH SCALING - Adjusts text for different name lengths ===
 BOAT_TEXT_REFERENCE_LENGTH = 16    # Reference: "The Smith Family" = 16 chars
 BOAT_TEXT_BASE_FONT_SIZE = 120     # Base font size (for reference length name)
-BOAT_TEXT_FONT_SCALE_PER_CHAR = 4  # Decrease font by this per extra char
-BOAT_TEXT_MIN_FONT_SIZE = 60       # Minimum font size limit
+BOAT_TEXT_FONT_SCALE_PER_CHAR = 5  # Decrease font by this per extra char (was 4)
+BOAT_TEXT_MIN_FONT_SIZE = 48       # Minimum font size limit (was 60)
 BOAT_TEXT_MAX_FONT_SIZE = 180      # Maximum font size limit
 BOAT_TEXT_RADIUS_SCALE_PER_CHAR = 50   # Increase radius per extra char
 BOAT_TEXT_Y_SCALE_PER_CHAR = 50    # Adjust Y position per extra char
+# Cap arc span so long / wide names shrink beyond char-count heuristics alone
+BOAT_TEXT_MAX_ARC_SPAN_DEG = 98    # Max angle (degrees) the text curve may subtend
+BOAT_TEXT_RADIUS_MAX_EXTRA = 1400  # Max extra radius (px) when fitting wide text
 
 # Boat PDF positioning (single centered image on boat_format.pdf)
 BOAT_PDF_X = -9.5                    # X position on PDF
@@ -183,6 +190,59 @@ def draw_text_on_arc(
         s_cum += adv
 
     return base_img
+
+
+def _boat_text_total_advance(font, text: str, kerning: float) -> float:
+    """Sum of glyph advances plus kerning gaps (must match draw_boat_text_on_arc)."""
+    return sum(
+        _glyph_advance(font, ch) + (kerning if i < len(text) - 1 else 0)
+        for i, ch in enumerate(text)
+    )
+
+
+def _load_font_for_boat(font_path: str, font_size: int):
+    try:
+        return ImageFont.truetype(font_path, font_size)
+    except OSError:
+        try:
+            return ImageFont.truetype(FONT_FALLBACK, font_size)
+        except OSError:
+            return ImageFont.load_default()
+
+
+def _boat_arc_span_ratio(font_path: str, font_size: int, text: str, kerning: float, radius: float) -> float:
+    """Angular span in radians: text_width / radius (same model as draw_boat_text_on_arc)."""
+    if radius <= 0:
+        return float("inf")
+    font = _load_font_for_boat(font_path, font_size)
+    text_width = _boat_text_total_advance(font, text, kerning)
+    return text_width / float(radius)
+
+
+def fit_boat_text_to_arc_span(name, font_path, font_size, radius, kerning):
+    """
+    Reduce font size and/or grow radius so the rendered arc does not subtend too wide an angle.
+    Long names and proportional fonts can still be too large when only length-based scaling is used.
+    """
+    max_span = math.radians(BOAT_TEXT_MAX_ARC_SPAN_DEG)
+    font_size = int(font_size)
+    radius = float(radius)
+
+    # Shrink font until span fits or we hit minimum
+    while font_size > BOAT_TEXT_MIN_FONT_SIZE:
+        if _boat_arc_span_ratio(font_path, font_size, name, kerning, radius) <= max_span:
+            break
+        font_size -= 2
+
+    # If still too wide at min font, grow radius (flattens arc, reduces subtended angle)
+    extra = 0.0
+    while (
+        extra < BOAT_TEXT_RADIUS_MAX_EXTRA
+        and _boat_arc_span_ratio(font_path, font_size, name, kerning, radius + extra) > max_span
+    ):
+        extra += 60.0
+
+    return font_size, radius + extra
 
 
 def draw_boat_text_on_arc(
@@ -368,9 +428,12 @@ def create_personalized_boat_image(name, image_path, output_path):
     print(f"  Adding text '{name}' to boat {os.path.basename(image_path)}")
     print(f"    Name length: {len(name)} chars (reference: {BOAT_TEXT_REFERENCE_LENGTH})")
     
-    # Calculate scaled settings based on name length
+    # Calculate scaled settings based on name length, then fit to max arc span (wide/long names)
     font_size, radius, center = calculate_boat_text_settings(name)
-    print(f"    Scaled font: {font_size}, radius: {radius}, center Y: {center[1]}")
+    font_size, radius = fit_boat_text_to_arc_span(
+        name, FONT_WALTOGRAPH, font_size, radius, BOAT_TEXT_KERNING
+    )
+    print(f"    Scaled font: {font_size}, radius: {radius:.0f}, center Y: {center[1]}")
     
     # Use Waltograph font for boats
     font_path = FONT_WALTOGRAPH
